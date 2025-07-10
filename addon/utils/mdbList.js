@@ -2,6 +2,7 @@ const axios = require("axios");
 const { getMeta } = require("../lib/getMeta");
 
 async function fetchMDBListItems(listId, apiKey, language, page) {
+    // Calculate offset for pagination with page size of 30 items per page
     const offset = (page * 30) - 30;
   try {
     const url = `https://api.mdblist.com/lists/${listId}/items?language=${language}&limit=30&offset=${offset}&apikey=${apiKey}&append_to_response=genre,poster`;
