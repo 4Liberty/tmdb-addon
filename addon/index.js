@@ -100,7 +100,8 @@ addon.get("/:catalogChoices?/catalog/:type/:id/:extra?.json", async function (re
       new URLSearchParams(req.url.split("/").pop().split("?")[0].slice(0, -5)).entries()
     )
     : {};
-  const page = Math.ceil(skip ? skip / 20 + 1 : undefined) || 1;
+  // Calculate page number from skip parameter using page size of 30 items per page
+  const page = Math.ceil(skip ? skip / 30 + 1 : undefined) || 1;
   let metas = [];
   try {
     const args = [type, language, page];
