@@ -25,9 +25,18 @@ async function getCatalog(type, language, page, id, genre, config) {
 
   const fetchFunction = type === "movie" ? moviedb.discoverMovie.bind(moviedb) : moviedb.discoverTv.bind(moviedb);
 
-  return fetchFunction(parameters)
-    .then(async (res) => {
-      const metaPromises = res.results.map(item => 
+  const pages = [
+    fetchFunction(parameters),
+    fetchFunction({ ...parameters, page: parameters.page + 1 }),
+    fetchFunction({ ...parameters, page: parameters.page + 2 }),
+    fetchFunction({ ...parameters, page: parameters.page + 3 }),
+    fetchFunction({ ...parameters, page: parameters.page + 4 }),
+  ]
+
+  return Promise.all(pages)
+    .then(async (results) => {
+      const allMetas = results.flatMap(res => res.results);
+      const metaPromises = allMetas.map(item =>
         getMeta(type, language, item.id, config.rpdbkey)
           .then(result => result.meta)
           .catch(err => {
