@@ -20,8 +20,6 @@ const { getTraktAuthUrl, getTraktAccessToken } = require("./lib/getTraktSession"
 const { getTraktWatchlist, getTraktRecommendations } = require("./lib/getTraktLists");
 const { blurImage } = require('./utils/imageProcessor');
 const { toCanonicalType } = require('./utils/typeCanonical');
-const { getTraktAuthUrl, getTraktAccessToken } = require('./lib/getTraktSession');
-const { getTraktWatchlist, getTraktRecommendations } = require('./lib/getTraktLists');
 const { testProxy, PROXY_CONFIG } = require('./utils/httpClient');
 const {
   trackUser,
