@@ -96,6 +96,16 @@ addon.get("/", function (_, res) {
   res.redirect("/configure");
 });
 
+// Minimal environment health endpoint (does not expose secrets)
+addon.get('/api/env', function (_req, res) {
+  res.setHeader("Access-Control-Allow-Origin", "*");
+  res.setHeader("Access-Control-Allow-Headers", "*");
+  res.setHeader("Content-Type", "application/json");
+  res.json({
+    tmdbConfigured: Boolean(process.env.TMDB_API && String(process.env.TMDB_API).trim()),
+  });
+});
+
 addon.get("/request_token", async function (req, res) {
   try {
     const apiKey = typeof req.query.api_key === 'string' ? req.query.api_key : undefined;

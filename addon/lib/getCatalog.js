@@ -8,10 +8,16 @@ const CATALOG_TYPES = require("../static/catalog-types.json");
 
 const { toCanonicalType } = require("../utils/typeCanonical");
 
+const STREMIO_PAGE_SIZE = 100;
+const TMDB_PAGE_SIZE = 20;
+const TMDB_PAGES_PER_STREMIO_PAGE = Math.ceil(STREMIO_PAGE_SIZE / TMDB_PAGE_SIZE);
+
 async function getCatalog(type, language, page, id, genre, config) {
   type = toCanonicalType(type);
   const moviedb = getTmdbClient(config);
   const mdblistKey = config.mdblistkey;
+
+  const stremioPage = Number(page) > 0 ? Number(page) : 1;
 
   if (id.startsWith("mdblist.")) {
     const listId = id.split(".")[1];
@@ -52,7 +58,7 @@ async function getCatalog(type, language, page, id, genre, config) {
   const parameters = await buildParameters(
     type,
     language,
-    page,
+    stremioPage,
     id,
     genre,
     genreList,
@@ -64,18 +70,33 @@ async function getCatalog(type, language, page, id, genre, config) {
       ? moviedb.discoverMovie.bind(moviedb)
       : moviedb.discoverTv.bind(moviedb);
 
-  return fetchFunction(parameters)
-    .then((res) => {
-      // TMDB API returns items with implicit type based on endpoint:
-      // discoverMovie returns movie items, discoverTv returns tv items
-      const tmdbType = type === "movie" ? "movie" : "tv";
-      const metas = res.results.map(item => parseMedia(item, tmdbType, genreList));
-      return { metas };
-    })
-    .catch(error => {
-      console.error("Error in getCatalog:", error);
-      throw error;
-    });
+  try {
+    // TMDB discover endpoints return 20 items per page. Stremio expects 100 per "page".
+    const tmdbType = type === "movie" ? "movie" : "tv";
+    const startTmdbPage = (stremioPage - 1) * TMDB_PAGES_PER_STREMIO_PAGE + 1;
+    const endTmdbPage = startTmdbPage + TMDB_PAGES_PER_STREMIO_PAGE - 1;
+
+    const results = [];
+    let totalPages = Infinity;
+
+    for (let tmdbPage = startTmdbPage; tmdbPage <= endTmdbPage && tmdbPage <= totalPages; tmdbPage++) {
+      const res = await fetchFunction({ ...parameters, page: tmdbPage });
+      if (Number.isFinite(res?.total_pages)) totalPages = res.total_pages;
+
+      const pageResults = Array.isArray(res?.results) ? res.results : [];
+      if (pageResults.length === 0) break;
+      results.push(...pageResults);
+    }
+
+    const metas = results
+      .slice(0, STREMIO_PAGE_SIZE)
+      .map((item) => parseMedia(item, tmdbType, genreList));
+
+    return { metas };
+  } catch (error) {
+    console.error("Error in getCatalog:", error);
+    throw error;
+  }
 }
 
 async function buildParameters(
