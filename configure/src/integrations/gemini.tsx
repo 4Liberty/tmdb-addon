@@ -16,10 +16,29 @@ export default function Gemini() {
 
   useEffect(() => {
     setTempKey(geminikey);
-    if (geminikey) {
-      validateGeminiKey(geminikey);
-    }
+    // Don't auto-call external APIs on mount; validate only when user clicks.
+    setIsValid(!!geminikey);
+    setError("");
   }, [geminikey]);
+
+  const readErrorMessage = async (response: Response) => {
+    try {
+      const contentType = response.headers.get("content-type") || "";
+      if (contentType.includes("application/json")) {
+        const body = await response.json();
+        return body?.error?.message || body?.message || body?.error || JSON.stringify(body);
+      }
+    } catch {
+      // ignore
+    }
+
+    try {
+      const text = await response.text();
+      return text || `Request failed (${response.status})`;
+    } catch {
+      return `Request failed (${response.status})`;
+    }
+  };
 
   const validateGeminiKey = async (key: string) => {
     if (!key) {
@@ -30,20 +49,22 @@ export default function Gemini() {
 
     setIsChecking(true);
     try {
-      const response = await fetch(`https://generativelanguage.googleapis.com/v1/models?key=${key}`);
-      const data = await response.json();
+      const response = await fetch(`https://generativelanguage.googleapis.com/v1/models?key=${encodeURIComponent(key)}`);
+      if (!response.ok) {
+        const message = await readErrorMessage(response);
+        throw new Error(message || "Gemini Key is invalid, please try again");
+      }
 
-      if (!(data || {})) {
-        setError("Gemini Key is invalid, please try again");
-        setIsValid(false);
-        return false;
+      const data = await response.json();
+      const models = (data as { models?: unknown })?.models;
+      if (!Array.isArray(models)) {
+        throw new Error("Gemini Key is invalid, please try again");
       }
       setError("");
       setIsValid(true);
       return true;
     } catch (e) {
-      console.error(e);
-      setError("Error validating Gemini key");
+      setError(e instanceof Error ? e.message : "Error validating Gemini key");
       setIsValid(false);
       return false;
     } finally {

@@ -311,7 +311,7 @@ export default function Home() {
 
     const timer = setTimeout(async () => {
       try {
-        const res = await fetch(`https://api.themoviedb.org/3/authentication?api_key=${tmdbApiKey}`);
+        const res = await fetch(`https://api.themoviedb.org/3/configuration?api_key=${encodeURIComponent(tmdbApiKey)}`);
         setIsKeyValid(res.ok);
       } catch (error) {
         setIsKeyValid(false);

@@ -2,14 +2,21 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { useConfig } from "@/contexts/ConfigContext";
 import { Button } from "@/components/ui/button";
 import { DialogClose } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { AlertCircle, Loader2 } from "lucide-react";
 
 export default function TMDB() {
-  const { sessionId, setSessionId, saveConfigToStorage, tmdbApiKey } = useConfig();
+  const { sessionId, setSessionId, saveConfigToStorage, tmdbApiKey, setTmdbApiKey } = useConfig();
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const popupCheckIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const [tempApiKey, setTempApiKey] = useState(tmdbApiKey || "");
+
+  useEffect(() => {
+    setTempApiKey(tmdbApiKey || "");
+  }, [tmdbApiKey]);
 
   const readErrorMessage = async (response: Response) => {
     try {
@@ -52,7 +59,6 @@ export default function TMDB() {
       
       window.history.replaceState({}, '', window.location.pathname);
     } catch (e) {
-      console.error(e);
       setError(e instanceof Error ? e.message : "Failed to create TMDB session");
     } finally {
       setIsLoading(false);
@@ -131,7 +137,6 @@ export default function TMDB() {
       const tmdbAuthUrl = `https://www.themoviedb.org/authenticate/${requestToken}?redirect_to=${window.location.href}`;
       window.location.href = tmdbAuthUrl;
     } catch (e) {
-      console.error(e);
       setError(e instanceof Error ? e.message : "Failed to start TMDB authentication");
       setIsLoading(false);
     }
@@ -144,6 +149,31 @@ export default function TMDB() {
   return (
     <div className="space-y-6">
       <div className="flex flex-col space-y-4">
+        <form className="space-y-2" onSubmit={(e) => e.preventDefault()}>
+          <Label htmlFor="tmdbApiKey">TMDB API Key (v3)</Label>
+          <Input
+            id="tmdbApiKey"
+            type="password"
+            placeholder="Enter your TMDB API key"
+            value={tempApiKey}
+            onChange={(e) => {
+              setTempApiKey(e.target.value);
+              setError("");
+            }}
+            autoComplete="off"
+          />
+          <div className="flex justify-end">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setTmdbApiKey(tempApiKey)}
+              disabled={tempApiKey === tmdbApiKey}
+            >
+              Save Key
+            </Button>
+          </div>
+        </form>
+
         {error && (
           <Alert variant="destructive">
             <AlertCircle className="h-4 w-4" />
