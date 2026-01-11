@@ -32,7 +32,7 @@ export function ConfigProvider({ children }: { children: React.ReactNode }) {
   const [returnImdbId, setReturnImdbId] = useState(false);
   const [tmdbPrefix, setTmdbPrefix] = useState(false);
   const [hideEpisodeThumbnails, setHideEpisodeThumbnails] = useState(false);
-  const [language, setLanguage] = useState("en-US");
+  const [language, setLanguage] = useState("tr-TR");
   const [sessionId, setSessionId] = useState("");
   const [streaming, setStreaming] = useState<string[]>([]);
   const [catalogs, setCatalogs] = useState<CatalogConfig[]>([]);
