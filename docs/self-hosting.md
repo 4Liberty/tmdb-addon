@@ -89,10 +89,13 @@ node addon/server.js
 | Variable | Description | Required |
 |----------|-------------|----------|
 | `MONGODB_URI` | MongoDB connection URI | Yes |
-| `FANART_API` | Fanart.tv API key | Yes |
+| `FANART_API` | Fanart.tv API key (optional; improves logos when set) | No |
 | `TMDB_API` | TMDB API key | Yes |
 | `HOST_NAME` | Public URL of your addon (e.g., http://your_domain:1337) | Yes |
 | `PORT` | Server port (default: 1337) | No |
+
+Notes:
+- The addon also accepts `FANART_API_KEY` or `FANARTTV_API_KEY` for Fanart.tv.
 
 ## Getting API Keys
 
