@@ -1,15 +1,16 @@
 const { GoogleGenerativeAI } = require("@google/generative-ai");
 const { withRetry } = require("./rateLimiter");
 
-// Modelo padrão - versão mais recente disponível no free tier
-// Limites: 10 RPM, 20 RPD, 250K TPM
-const DEFAULT_GEMINI_MODEL = "gemini-2.5-flash-lite";
+// Default to a broadly-available model; allow override via env.
+// Some model names change over time; this default aims for compatibility.
+const DEFAULT_GEMINI_MODEL = "gemini-1.5-flash";
 
 class GeminiService {
   constructor() {
     this.genAI = null;
     this.model = null;
-    this.modelName = DEFAULT_GEMINI_MODEL;
+    this.modelName = process.env.GEMINI_MODEL || DEFAULT_GEMINI_MODEL;
+    this.currentKey = null;
     // Throttling para respeitar limites: 10 RPM = mínimo 6 segundos entre requisições
     this.lastRequestTime = 0;
     this.minRequestInterval = 6000; // 6 segundos (10 RPM = 1 req a cada 6s)
@@ -18,12 +19,18 @@ class GeminiService {
   async initialize(apiKey) {
     if (!apiKey) return false;
 
+    if (this.model && this.currentKey === apiKey) {
+      return true;
+    }
+
     try {
       this.genAI = new GoogleGenerativeAI(apiKey);
       this.model = this.genAI.getGenerativeModel({ model: this.modelName });
+      this.currentKey = apiKey;
       return true;
     } catch (error) {
       console.error("Error initializing Gemini:", error);
+      this.currentKey = null;
       return false;
     }
   }
