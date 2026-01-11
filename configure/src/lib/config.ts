@@ -1,0 +1,64 @@
+import { compressToEncodedURIComponent } from 'lz-string';
+import { toCanonicalType } from '@/utils/typeCanonical';
+
+interface AddonConfig {
+  rpdbkey?: string;
+  fanartApiKey?: string;
+  geminikey?: string;
+  mdblistkey?: string;
+  includeAdult?: boolean;
+  provideImdbId?: boolean;
+  tmdbPrefix?: boolean;
+  hideEpisodeThumbnails?: boolean;
+  language?: string;
+  sessionId?: string;
+  traktAccessToken?: string;
+  traktRefreshToken?: string;
+  ageRating?: string;
+  searchEnabled?: boolean;
+  catalogs?: Array<{
+    id: string;
+    type: string;
+    name: string;
+    enabled: boolean;
+    showInHome: boolean;
+  }>;
+  hideInCinemaTag?: boolean;
+  castCount?: number;
+}
+
+export function generateAddonUrl(config: AddonConfig): string {
+  const configToEncode = {
+    ...config,
+    rpdbkey: config.rpdbkey || undefined,
+    fanartApiKey: config.fanartApiKey || undefined,
+    geminikey: config.geminikey || undefined,
+    mdblistkey: config.mdblistkey || undefined,
+    sessionId: config.sessionId || undefined,
+    traktAccessToken: config.traktAccessToken || undefined,
+    traktRefreshToken: config.traktRefreshToken || undefined,
+    catalogs: config.catalogs
+      ?.filter(catalog => catalog.enabled === false ? false : true)
+      .map(({ id, type, name, showInHome }) => ({
+        id,
+        type: toCanonicalType(type),
+        name,
+        showInHome
+      })),
+    includeAdult: config.includeAdult === true ? "true" : undefined,
+    provideImdbId: config.provideImdbId === true ? "true" : undefined,
+    tmdbPrefix: config.tmdbPrefix === true ? "true" : undefined,
+    hideEpisodeThumbnails: config.hideEpisodeThumbnails === true ? "true" : undefined,
+    searchEnabled: config.searchEnabled === false ? "false" : undefined,
+    hideInCinemaTag: config.hideInCinemaTag === true ? "true" : undefined,
+    castCount: typeof config.castCount === "number" ? config.castCount : undefined,
+  };
+
+  const cleanConfig = Object.fromEntries(
+    Object.entries(configToEncode).filter(([_, value]) => value !== undefined && value !== null)
+  );
+
+  const compressed = compressToEncodedURIComponent(JSON.stringify(cleanConfig));
+  
+  return `${window.location.origin}/${compressed}/manifest.json`;
+}

@@ -1,0 +1,92 @@
+const axios = require('axios');
+
+class GroqService {
+  constructor() {
+    this.apiKey = null;
+    this.model = 'llama-3.3-70b-versatile';
+    this.baseUrl = 'https://api.groq.com/openai/v1/chat/completions';
+  }
+
+  initialize(apiKey) {
+    if (!apiKey) return false;
+    this.apiKey = apiKey;
+    return true;
+  }
+
+  async translateToEnglish(query) {
+    if (!this.apiKey) return query;
+
+    try {
+      const response = await axios.post(
+        this.baseUrl,
+        {
+          model: this.model,
+          messages: [
+            {
+              role: 'system',
+              content:
+                'Translate the following search query to English. Return only the translation, no explanations.',
+            },
+            { role: 'user', content: query },
+          ],
+          temperature: 0.1,
+        },
+        {
+          headers: {
+            Authorization: `Bearer ${this.apiKey}`,
+            'Content-Type': 'application/json',
+          },
+        }
+      );
+
+      return response.data?.choices?.[0]?.message?.content?.trim() || query;
+    } catch (error) {
+      console.error('Error translating query with Groq:', error?.message || error);
+      return query;
+    }
+  }
+
+  async searchWithAI(query, type) {
+    if (!this.apiKey) return [];
+
+    try {
+      const englishQuery = await this.translateToEnglish(query);
+
+      const prompt = `You are a movie and TV show expert assistant. Your task is to analyze the user's search query and return the exact titles of the most relevant movies/shows.
+
+User's search: "${englishQuery}"
+Type: ${type}
+
+Important instructions:
+1. Return only the exact titles, separated by commas
+2. Do not include explanations or additional text
+3. Maximum 20 titles`;
+
+      const response = await axios.post(
+        this.baseUrl,
+        {
+          model: this.model,
+          messages: [{ role: 'user', content: prompt }],
+          temperature: 0.3,
+        },
+        {
+          headers: {
+            Authorization: `Bearer ${this.apiKey}`,
+            'Content-Type': 'application/json',
+          },
+        }
+      );
+
+      const content = response.data?.choices?.[0]?.message?.content || '';
+      return content
+        .split(',')
+        .map((title) => title.trim())
+        .filter((title) => title.length > 0);
+    } catch (error) {
+      console.error('Error processing AI search with Groq:', error?.message || error);
+      return [];
+    }
+  }
+}
+
+module.exports = new GroqService();
