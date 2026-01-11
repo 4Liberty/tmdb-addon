@@ -230,6 +230,7 @@ export default function Home() {
   const [configLink, setConfigLink] = useState("");
   const [loadError, setLoadError] = useState<string>("");
   const [loadSuccess, setLoadSuccess] = useState<string>("");
+  const [userCount, setUserCount] = useState<number | null>(null);
 
   useEffect(() => {
     const fetchPopularMovies = async () => {

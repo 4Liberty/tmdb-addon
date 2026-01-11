@@ -53,6 +53,7 @@ export function ConfigProvider({ children }: { children: React.ReactNode }) {
       const config = {
         rpdbkey,
         rpdbMediaTypes,
+        fanartApiKey,
         geminikey,
         groqkey,
         mdblistkey,
@@ -314,6 +315,12 @@ export function ConfigProvider({ children }: { children: React.ReactNode }) {
     setSearchEnabled,
     setHideInCinemaTag,
     setCastCount,
+    setShowAgeRatingInGenres,
+    setEnableAgeRating,
+    setShowAgeRatingWithImdbRating,
+    setStrictRegionFilter,
+    setDigitalReleaseFilter,
+    saveConfigToStorage,
     loadConfigFromUrl,
     loadConfigFromString
   };

@@ -69,6 +69,7 @@ export type ConfigContextType = {
   setShowAgeRatingWithImdbRating: (show: boolean) => void;
   setStrictRegionFilter: (enable: boolean) => void;
   setDigitalReleaseFilter: (enable: boolean) => void;
+  saveConfigToStorage: () => void;
   loadConfigFromUrl: () => void;
   loadConfigFromString: (input: string) => void;
 };

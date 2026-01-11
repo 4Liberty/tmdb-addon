@@ -3,6 +3,11 @@ import { toCanonicalType } from '@/utils/typeCanonical';
 
 interface AddonConfig {
   rpdbkey?: string;
+  rpdbMediaTypes?: {
+    poster: boolean;
+    logo: boolean;
+    backdrop: boolean;
+  };
   fanartApiKey?: string;
   geminikey?: string;
   groqkey?: string;
@@ -22,7 +27,7 @@ interface AddonConfig {
   catalogs?: Array<{
     id: string;
     type: string;
-    name: string;
+    name?: string;
     enabled: boolean;
     showInHome: boolean;
   }>;
@@ -32,12 +37,14 @@ interface AddonConfig {
   enableAgeRating?: boolean;
   showAgeRatingWithImdbRating?: boolean;
   strictRegionFilter?: boolean;
+  digitalReleaseFilter?: boolean;
 }
 
 export function generateAddonUrl(config: AddonConfig): string {
   const configToEncode = {
     ...config,
     rpdbkey: config.rpdbkey || undefined,
+    rpdbMediaTypes: config.rpdbMediaTypes || undefined,
     fanartApiKey: config.fanartApiKey || undefined,
     geminikey: config.geminikey || undefined,
     groqkey: config.groqkey || undefined,
@@ -51,7 +58,7 @@ export function generateAddonUrl(config: AddonConfig): string {
       .map(({ id, type, name, showInHome }) => ({
         id,
         type: toCanonicalType(type),
-        name,
+        name: name ?? id,
         showInHome
       })),
     includeAdult: config.includeAdult === true ? "true" : undefined,
@@ -66,6 +73,7 @@ export function generateAddonUrl(config: AddonConfig): string {
     showAgeRatingInGenres: typeof config.showAgeRatingInGenres === "boolean" ? String(config.showAgeRatingInGenres) : undefined,
     showAgeRatingWithImdbRating: typeof config.showAgeRatingWithImdbRating === "boolean" ? String(config.showAgeRatingWithImdbRating) : undefined,
     strictRegionFilter: typeof config.strictRegionFilter === "boolean" ? String(config.strictRegionFilter) : undefined,
+    digitalReleaseFilter: typeof config.digitalReleaseFilter === "boolean" ? String(config.digitalReleaseFilter) : undefined,
   };
 
   const cleanConfig = Object.fromEntries(
