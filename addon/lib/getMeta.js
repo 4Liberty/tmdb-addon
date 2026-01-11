@@ -77,7 +77,7 @@ const buildMovieResponse = async (res, type, language, tmdbId, rpdbkey, config =
   }
   const [poster, logo, imdbRatingRaw] = await Promise.all([
     Utils.parsePoster(canonicalType, tmdbId, res.poster_path, language, rpdbkey),
-    getLogo(tmdbId, language, res.original_language).catch(e => {
+    getLogo(tmdbId, language, res.original_language, config).catch(e => {
       console.warn(`Erro ao buscar logo para filme ${tmdbId}:`, e.message);
       return null;
     }),
@@ -154,7 +154,7 @@ const buildTvResponse = async (res, type, language, tmdbId, rpdbkey, config = {}
 
   const [poster, logo, imdbRatingRaw, episodes] = await Promise.all([
     Utils.parsePoster(canonicalType, tmdbId, res.poster_path, language, rpdbkey),
-    getTvLogo(res.external_ids?.tvdb_id, res.id, language, res.original_language).catch(e => {
+    getTvLogo(res.external_ids?.tvdb_id, res.id, language, res.original_language, config).catch(e => {
       console.warn(`Erro ao buscar logo para série ${tmdbId}:`, e.message);
       return null;
     }),

@@ -15,6 +15,7 @@ const allCatalogs = [
 
 export function ConfigProvider({ children }: { children: React.ReactNode }) {
   const [rpdbkey, setRpdbkey] = useState("");
+  const [fanartApiKey, setFanartApiKey] = useState("");
   const [geminikey, setGeminiKey] = useState("");
   const [mdblistkey, setMdblistkey] = useState("");
   const [includeAdult, setIncludeAdult] = useState(false);
@@ -48,6 +49,7 @@ export function ConfigProvider({ children }: { children: React.ReactNode }) {
       const config = JSON.parse(decompressedConfig);
       
       if (config.rpdbkey) setRpdbkey(config.rpdbkey);
+      if (config.fanartApiKey) setFanartApiKey(config.fanartApiKey);
       if (config.mdblistkey) setMdblistkey(config.mdblistkey);
       if (config.geminikey) setGeminiKey(config.geminikey);
       if (config.provideImdbId) setProvideImdbId(config.provideImdbId === "true");
@@ -106,6 +108,7 @@ export function ConfigProvider({ children }: { children: React.ReactNode }) {
 
   const value = {
     rpdbkey,
+    fanartApiKey,
     geminikey,
     mdblistkey,
     includeAdult,
@@ -123,6 +126,7 @@ export function ConfigProvider({ children }: { children: React.ReactNode }) {
     hideInCinemaTag,
     castCount,
     setRpdbkey,
+    setFanartApiKey,
     setGeminiKey,
     setMdblistkey,
     setIncludeAdult,

@@ -41,5 +41,11 @@ export const integrations: Integration[] = [
     name: "Trakt",
     icon: "https://trakt.tv/assets/logos/logomark.square.gradient-b644b16c38ff775861b4b1f58c1230f6a097a2466ab33ae00445a505c33fcb91.svg",
     description: "Track what you watch and sync your progress with Trakt.tv.",
+  },
+  {
+    id: "fanart",
+    name: "Fanart.tv",
+    icon: "https://fanart.tv/wp-content/uploads/2020/01/cropped-fanart-logo-32x32.png",
+    description: "Provide a Fanart.tv API key to improve logos when available.",
   }
 ]; 

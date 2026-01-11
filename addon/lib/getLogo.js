@@ -2,28 +2,44 @@ require('dotenv').config();
 const FanartTvApi = require("fanart.tv-api");
 
 let fanartClient;
-function getFanartClient() {
-  if (fanartClient !== undefined) return fanartClient;
-
-  const apiKey =
+function resolveFanartApiKey(config) {
+  return (
+    config?.fanartApiKey ||
+    config?.fanart_api_key ||
+    config?.fanartKey ||
+    config?.fanart_key ||
     process.env.FANART_API ||
     process.env.FANART_API_KEY ||
-    process.env.FANARTTV_API_KEY;
+    process.env.FANARTTV_API_KEY
+  );
+}
 
-  if (!apiKey) {
-    fanartClient = null;
-    return fanartClient;
-  }
-
+function createFanartClient(apiKey) {
   const baseUrl = process.env.FANART_BASE_URL || "http://webservice.fanart.tv/v3/";
   try {
-    fanartClient = new FanartTvApi({ apiKey, baseUrl });
+    return new FanartTvApi({ apiKey, baseUrl });
   } catch (err) {
     console.warn(
       `[fanart] Failed to initialize Fanart client; continuing without it: ${err?.message || err}`
     );
-    fanartClient = null;
+    return null;
   }
+}
+
+function getFanartClient(config) {
+  const apiKey = resolveFanartApiKey(config);
+  if (!apiKey) return null;
+
+  // Cache only the env-based client; config-provided keys are per-user.
+  const isEnvKey =
+    apiKey === process.env.FANART_API ||
+    apiKey === process.env.FANART_API_KEY ||
+    apiKey === process.env.FANARTTV_API_KEY;
+
+  if (!isEnvKey) return createFanartClient(apiKey);
+
+  if (fanartClient !== undefined) return fanartClient;
+  fanartClient = createFanartClient(apiKey);
   return fanartClient;
 }
 
@@ -40,13 +56,13 @@ function pickLogo(logos, language, originalLanguage) {
   );
 }
 
-async function getLogo(tmdbId, language, originalLanguage) {
+async function getLogo(tmdbId, language, originalLanguage, config = null) {
   if (!tmdbId) {
     throw new Error(`TMDB ID not available for logo: ${tmdbId}`);
   }
 
-  const moviedb = getTmdbClient();
-  const fanart = getFanartClient();
+  const moviedb = getTmdbClient(config || undefined);
+  const fanart = getFanartClient(config);
 
   const [fanartRes, tmdbRes] = await Promise.all([
     fanart
@@ -82,13 +98,13 @@ async function getLogo(tmdbId, language, originalLanguage) {
   return picked?.url || '';
 }
 
-async function getTvLogo(tvdb_id, tmdbId, language, originalLanguage) {
+async function getTvLogo(tvdb_id, tmdbId, language, originalLanguage, config = null) {
   if (!tvdb_id && !tmdbId) {
     throw new Error(`TVDB ID and TMDB ID not available for logos.`);
   }
 
-  const moviedb = getTmdbClient();
-  const fanart = getFanartClient();
+  const moviedb = getTmdbClient(config || undefined);
+  const fanart = getFanartClient(config);
 
   const [fanartRes, tmdbRes] = await Promise.all([
     tvdb_id && fanart

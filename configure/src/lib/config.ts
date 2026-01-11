@@ -3,6 +3,7 @@ import { toCanonicalType } from '@/utils/typeCanonical';
 
 interface AddonConfig {
   rpdbkey?: string;
+  fanartApiKey?: string;
   geminikey?: string;
   mdblistkey?: string;
   includeAdult?: boolean;
@@ -30,6 +31,7 @@ export function generateAddonUrl(config: AddonConfig): string {
   const configToEncode = {
     ...config,
     rpdbkey: config.rpdbkey || undefined,
+    fanartApiKey: config.fanartApiKey || undefined,
     geminikey: config.geminikey || undefined,
     mdblistkey: config.mdblistkey || undefined,
     sessionId: config.sessionId || undefined,

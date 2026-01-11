@@ -19,6 +19,25 @@ export default function Trakt() {
   const [isLoading, setIsLoading] = useState(false);
   const popupCheckIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
+  const readErrorMessage = async (response: Response) => {
+    try {
+      const contentType = response.headers.get("content-type") || "";
+      if (contentType.includes("application/json")) {
+        const body = await response.json();
+        return body?.message || body?.error || JSON.stringify(body);
+      }
+    } catch {
+      // ignore
+    }
+
+    try {
+      const text = await response.text();
+      return text || `Request failed (${response.status})`;
+    } catch {
+      return `Request failed (${response.status})`;
+    }
+  };
+
   const handleAccessToken = useCallback(
     async (code: string) => {
       setIsLoading(true);
@@ -29,8 +48,8 @@ export default function Trakt() {
 
         const response = await fetch(`/trakt_access_token?code=${encodeURIComponent(code)}`);
         if (!response.ok) {
-          const text = await response.text();
-          throw new Error(text || "Failed to exchange Trakt code");
+          const message = await readErrorMessage(response);
+          throw new Error(message || "Failed to exchange Trakt code");
         }
 
         const tokenData = await response.json();
@@ -105,8 +124,8 @@ export default function Trakt() {
     try {
       const response = await fetch("/trakt_auth_url");
       if (!response.ok) {
-        const text = await response.text();
-        throw new Error(text || "Failed to get Trakt auth URL");
+        const message = await readErrorMessage(response);
+        throw new Error(message || "Failed to get Trakt auth URL");
       }
 
       const data = await response.json();

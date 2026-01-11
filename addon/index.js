@@ -2,6 +2,9 @@ const express = require("express");
 const favicon = require('serve-favicon');
 const path = require("path")
 const addon = express();
+
+// Respect X-Forwarded-* headers on platforms like Railway so req.protocol matches https.
+addon.set('trust proxy', true);
 const analytics = require('./utils/analytics');
 const { getCatalog } = require("./lib/getCatalog");
 const { getSearch } = require("./lib/getSearch");
@@ -279,8 +282,9 @@ addon.get('/trakt_auth_url', async function (req, res) {
     const data = await getTraktAuthUrl(baseUrl);
     respond(res, data);
   } catch (error) {
-    console.error('[ERROR] Failed to get Trakt auth URL:', error?.message || error);
-    res.status(500).json({ error: 'Failed to get Trakt auth URL' });
+    const message = error?.message ? String(error.message) : String(error);
+    console.error('[ERROR] Failed to get Trakt auth URL:', message);
+    res.status(500).json({ error: 'Failed to get Trakt auth URL', message });
   }
 });
 
@@ -295,8 +299,9 @@ addon.get('/trakt_access_token', async function (req, res) {
     const tokenData = await getTraktAccessToken(code, redirectUri);
     respond(res, tokenData);
   } catch (error) {
-    console.error('[ERROR] Failed to exchange Trakt code:', error?.message || error);
-    res.status(500).json({ error: 'Failed to exchange Trakt code' });
+    const message = error?.message ? String(error.message) : String(error);
+    console.error('[ERROR] Failed to exchange Trakt code:', message);
+    res.status(500).json({ error: 'Failed to exchange Trakt code', message });
   }
 });
 

@@ -93,6 +93,8 @@ node addon/server.js
 | `TMDB_API` | TMDB API key | Yes |
 | `HOST_NAME` | Public URL of your addon (e.g., http://your_domain:1337) | Yes |
 | `PORT` | Server port (default: 1337) | No |
+| `TRAKT_CLIENT_ID` | Trakt OAuth client id (required for Trakt integration) | No |
+| `TRAKT_CLIENT_SECRET` | Trakt OAuth client secret (required for Trakt integration) | No |
 
 Notes:
 - The addon also accepts `FANART_API_KEY` or `FANARTTV_API_KEY` for Fanart.tv.

@@ -10,6 +10,7 @@ export type CatalogConfig = {
 
 export type ConfigContextType = {
   rpdbkey: string;
+  fanartApiKey: string;
   geminikey: string;
   mdblistkey: string;
   includeAdult: boolean;
@@ -27,6 +28,7 @@ export type ConfigContextType = {
   hideInCinemaTag: boolean;
   castCount: number | undefined;
   setRpdbkey: (rpdbkey: string) => void;
+  setFanartApiKey: (apiKey: string) => void;
   setGeminiKey: (geminikey: string) => void;
   setMdblistkey: (mdblistkey: string) => void;
   setIncludeAdult: (includeAdult: boolean) => void;
