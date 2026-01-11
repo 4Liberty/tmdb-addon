@@ -108,7 +108,8 @@ addon.get("/request_token", async function (req, res) {
     const message = error?.message ? String(error.message) : String(error);
     console.error(`[ERROR] Failed to get request token:`, message);
     const isMissingKey = /TMDB_API not configured/i.test(message);
-    res.status(isMissingKey ? 400 : 500).json({ error: "Failed to get request token", message });
+    const isClientError = isMissingKey || /invalid api key|unauthorized|authentication failed/i.test(message);
+    res.status(isClientError ? 400 : 500).json({ error: "Failed to get request token", message });
   }
 });
 
@@ -127,7 +128,10 @@ addon.get("/session_id", async function (req, res) {
     const message = error?.message ? String(error.message) : String(error);
     console.error(`[ERROR] Failed to get session ID:`, message);
     const isMissingKey = /TMDB_API not configured/i.test(message);
-    res.status(isMissingKey ? 400 : 500).json({ error: "Failed to get session ID", message });
+    const isClientError =
+      isMissingKey ||
+      /request token|invalid|unauthorized|authentication failed|approved/i.test(message);
+    res.status(isClientError ? 400 : 500).json({ error: "Failed to get session ID", message });
   }
 });
 

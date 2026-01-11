@@ -95,13 +95,18 @@ export default function TMDB() {
     const requestToken = urlParams.get('request_token');
 
     if (requestToken && !window.opener) {
+      // If we already have a session, ignore the leftover token.
+      if (sessionId) {
+        window.history.replaceState({}, '', window.location.pathname);
+        return;
+      }
       handleRequestToken(requestToken);
     }
 
     return () => {
       window.removeEventListener('message', handleMessage);
     };
-  }, [handleRequestToken]);
+  }, [handleRequestToken, sessionId]);
 
   const handleLogin = async () => {
     setIsLoading(true);

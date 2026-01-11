@@ -22,6 +22,9 @@ async function getRequestToken(overrideKey) {
         params: { api_key: apiKey }
     });
     if (response?.data?.success) return response.data.request_token;
+    if (response?.data?.status_message) {
+        throw new Error(String(response.data.status_message));
+    }
     return response?.data?.request_token;
 }
 
@@ -32,6 +35,9 @@ async function getSessionId(requestToken, overrideKey) {
         params: { api_key: apiKey, request_token: requestToken }
     });
     if (response?.data?.success) return response.data.session_id;
+    if (response?.data?.status_message) {
+        throw new Error(String(response.data.status_message));
+    }
     return response?.data?.session_id;
 }
 
