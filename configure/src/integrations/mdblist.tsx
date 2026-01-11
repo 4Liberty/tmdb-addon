@@ -38,7 +38,7 @@ export default function MDBListIntegration() {
           type: list.mediatype === "movie" ? "movie" : "series",
           name: list.name,
           enabled: true,
-          showInHome: false,
+          showInHome: true,
         }));
 
         setCatalogs([
@@ -76,14 +76,14 @@ export default function MDBListIntegration() {
 
   const handleAddCustomList = async () => {
     try {
-      const url = new URL(customListUrl);
-      const listId = url.searchParams.get("list");
-      if (!listId) {
+      const path = new URL(customListUrl).pathname;
+      const listName = path.replace('/lists/', '');
+      if (!listName) {
         throw new Error("Invalid URL");
       }
 
       const response = await fetch(
-        `https://api.mdblist.com/lists/${listId}?apikey=${tempKey}`
+        `https://api.mdblist.com/lists/${listName}?apikey=${tempKey}`
       );
       if (!response.ok) {
         throw new Error("Error fetching list");
@@ -97,7 +97,7 @@ export default function MDBListIntegration() {
         type,
         name: list.name,
         enabled: true,
-        showInHome: false,
+        showInHome: true,
       };
 
       setCatalogs((prev) => {
@@ -118,6 +118,13 @@ export default function MDBListIntegration() {
         description: message,
       });
     }
+  };
+
+  const handleRemove = () => {
+    setMdblistkey("");
+    setCatalogs((prev) => prev.filter((c) => !c.id.startsWith("mdblist.")));
+    setTempKey("");
+    setIsValid(false);
   };
 
   return (
@@ -155,12 +162,12 @@ export default function MDBListIntegration() {
               <Label htmlFor="customListUrl">
                 Add list by URL (Ex:{" "}
                 <a
-                  href="https://mdblist.com/?list=123"
+                  href="https://mdblist.com/lists/garycrawfordgc/latest-tv-shows"
                   target="_blank"
                   rel="noopener noreferrer"
                   className="text-primary hover:underline"
                 >
-                  https://mdblist.com/?list=123
+                  https://mdblist.com/lists/username/list-name
                 </a>
                 )
               </Label>
@@ -180,31 +187,40 @@ export default function MDBListIntegration() {
         </div>
       )}
 
-      <div className="flex justify-end space-x-2">
-        <DialogClose asChild>
-          <Button variant="outline" onClick={handleCancel}>
-            Cancel
-          </Button>
-        </DialogClose>
-        {isValid ? (
+      <div className="flex justify-between space-x-2">
+        {mdblistkey && (
           <DialogClose asChild>
-            <Button onClick={handleSave}>Save Changes</Button>
+            <Button variant="destructive" onClick={handleRemove}>
+              Remove
+            </Button>
           </DialogClose>
-        ) : (
-          <Button
-            onClick={() => validateApiKey(tempKey)}
-            disabled={!tempKey || isChecking}
-          >
-            {isChecking ? (
-              <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Checking
-              </>
-            ) : (
-              "Check Key"
-            )}
-          </Button>
         )}
+        <div className="flex space-x-2 justify-end flex-1">
+          <DialogClose asChild>
+            <Button variant="outline" onClick={handleCancel}>
+              Cancel
+            </Button>
+          </DialogClose>
+          {isValid ? (
+            <DialogClose asChild>
+              <Button onClick={handleSave}>Save Changes</Button>
+            </DialogClose>
+          ) : (
+            <Button
+              onClick={() => validateApiKey(tempKey)}
+              disabled={!tempKey || isChecking}
+            >
+              {isChecking ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Checking
+                </>
+              ) : (
+                "Check Key"
+              )}
+            </Button>
+          )}
+        </div>
       </div>
     </div>
   );

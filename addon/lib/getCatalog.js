@@ -120,14 +120,31 @@ async function buildParameters(
     }
   }
 
-  if (id.includes("streaming")) {
-    const provider = findProvider(id.split(".")[1]);
+  const providerId = id.split(".")[1];
+  const isStreaming = Object.keys(CATALOG_TYPES.streaming).includes(providerId);
+
+  if (isStreaming) {
+    const provider = findProvider(providerId);
 
     parameters.with_genres = genre ? findGenreId(genre, genreList) : undefined;
     parameters.with_watch_providers = provider.watchProviderId;
     parameters.watch_region = provider.country;
     parameters.with_watch_monetization_types = "flatrate|free|ads";
   } else {
+    // Apply region filtering for "Top" and "Year" catalogs
+    // This prioritizes content released in the selected region (e.g., Italy)
+    // ONLY if strict region filtering is enabled
+    if ((config.strictRegionFilter === "true" || config.strictRegionFilter === true) && (id === "tmdb.top" || id === "tmdb.year") && language && language.split('-')[1]) {
+      parameters.region = language.split('-')[1];
+      const today = new Date().toISOString().split('T')[0];
+      if (type === "movie") {
+        parameters['release_date.lte'] = today;
+        parameters.with_release_type = "4|5|6";
+      } else {
+        parameters['first_air_date.lte'] = today;
+      }
+    }
+
     switch (id) {
       case "tmdb.top":
         parameters.with_genres = genre ? findGenreId(genre, genreList) : undefined;
@@ -147,6 +164,25 @@ async function buildParameters(
           ? findLanguageCode(genre, languages)
           : language.split("-")[0];
         parameters.with_original_language = findGenre;
+        break;
+      case "tmdb.latest":
+        parameters.with_genres = genre ? findGenreId(genre, genreList) : undefined;
+        const date = new Date();
+        const today = date.toISOString().split('T')[0];
+
+        // Go back 1 month
+        date.setMonth(date.getMonth() - 1);
+        const oneMonthAgo = date.toISOString().split('T')[0];
+
+        if (type === "movie") {
+          parameters["primary_release_date.gte"] = oneMonthAgo;
+          parameters["primary_release_date.lte"] = today;
+          parameters["sort_by"] = "primary_release_date.desc";
+        } else {
+          parameters["first_air_date.gte"] = oneMonthAgo;
+          parameters["first_air_date.lte"] = today;
+          parameters["sort_by"] = "first_air_date.desc";
+        }
         break;
       default:
         break;

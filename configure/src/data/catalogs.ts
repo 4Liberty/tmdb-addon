@@ -12,14 +12,16 @@ export interface Catalog {
 }
 
 export const baseCatalogs: Catalog[] = [
+  { id: "tmdb.latest", name: "Latest Releases", type: "movie" },
+  { id: "tmdb.latest", name: "Latest Releases", type: "series" },
+  { id: "tmdb.trending", name: "Trending", type: "movie" },
+  { id: "tmdb.trending", name: "Trending", type: "series" },
   { id: "tmdb.top", name: "Popular", type: "movie" },
   { id: "tmdb.top", name: "Popular", type: "series" },
   { id: "tmdb.year", name: "Year", type: "movie" },
   { id: "tmdb.year", name: "Year", type: "series" },
   { id: "tmdb.language", name: "Language", type: "movie" },
   { id: "tmdb.language", name: "Language", type: "series" },
-  { id: "tmdb.trending", name: "Trending", type: "movie" },
-  { id: "tmdb.trending", name: "Trending", type: "series" },
 ];
 
 export const authCatalogs: Catalog[] = [
@@ -27,6 +29,13 @@ export const authCatalogs: Catalog[] = [
   { id: "tmdb.favorites", name: "Favorites", type: "series" },
   { id: "tmdb.watchlist", name: "Watchlist", type: "movie" },
   { id: "tmdb.watchlist", name: "Watchlist", type: "series" },
+];
+
+export const traktCatalogs: Catalog[] = [
+  { id: "trakt.watchlist", name: "Trakt Watchlist", type: "movie" },
+  { id: "trakt.watchlist", name: "Trakt Watchlist", type: "series" },
+  { id: "trakt.recommendations", name: "Trakt Recommendations", type: "movie" },
+  { id: "trakt.recommendations", name: "Trakt Recommendations", type: "series" },
 ];
 
 export const streamingCatalogs: Record<string, Catalog[]> = {

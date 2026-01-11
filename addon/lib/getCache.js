@@ -1,6 +1,7 @@
 const cacheManager = require('cache-manager');
 const redisStore = require('cache-manager-ioredis');
 const Redis = require('ioredis');
+const { mongoDbStore } = require('@tirke/node-cache-manager-mongodb');
 
 const GLOBAL_KEY_PREFIX = 'tmdb-addon';
 const META_KEY_PREFIX = `${GLOBAL_KEY_PREFIX}|meta`;
@@ -11,10 +12,14 @@ const CATALOG_TTL = process.env.CATALOG_TTL || 1 * 24 * 60 * 60; // 1 day
 
 const NO_CACHE = process.env.NO_CACHE || false;
 const REDIS_URL = process.env.REDIS_URL;
+const MONGODB_URI = process.env.MONGODB_URI;
 
 let redisInstance = null;
 
 const cache = initiateCache();
+
+// Cache MongoDB para catalog e meta
+let mongoCache = null;
 
 function initiateCache() {
   if (NO_CACHE) {
@@ -34,6 +39,38 @@ function initiateCache() {
   }
 }
 
+async function initiateMongoCache() {
+  if (NO_CACHE || !MONGODB_URI) {
+    return null;
+  }
+
+  try {
+    mongoCache = await cacheManager.caching(mongoDbStore, {
+      url: MONGODB_URI,
+      ttl: META_TTL
+    });
+    console.log('MongoDB cache conectado com sucesso');
+    return mongoCache;
+  } catch (error) {
+    console.error('Erro ao conectar MongoDB cache:', error);
+    return null;
+  }
+}
+
+// Inicializa MongoDB cache (lazy initialization)
+let mongoInitPromise = null;
+async function ensureMongoCache() {
+  if (mongoCache) {
+    return mongoCache;
+  }
+  
+  if (!mongoInitPromise) {
+    mongoInitPromise = initiateMongoCache();
+  }
+  
+  return mongoInitPromise;
+}
+
 function cacheWrap(key, method, options) {
   if (NO_CACHE || !cache) {
     return method();
@@ -41,12 +78,35 @@ function cacheWrap(key, method, options) {
   return cache.wrap(key, method, options);
 }
 
+async function cacheWrapMongo(key, method, ttl) {
+  if (NO_CACHE || !MONGODB_URI) {
+    return method();
+  }
+
+  // Garante que MongoDB cache está inicializado
+  const mongo = await ensureMongoCache();
+  
+  if (!mongo) {
+    return method();
+  }
+
+  try {
+    return await mongo.wrap(key, method, { ttl });
+  } catch (error) {
+    console.error(`Erro no cache MongoDB para chave ${key}:`, error);
+    // Em caso de erro, executa o método sem cache
+    return method();
+  }
+}
+
 function cacheWrapCatalog(id, method) {
-  return cacheWrap(`${CATALOG_KEY_PREFIX}:${id}`, method, { ttl: CATALOG_TTL });
+  // Usa MongoDB para catalog
+  return cacheWrapMongo(`${CATALOG_KEY_PREFIX}:${id}`, method, CATALOG_TTL);
 }
 
 function cacheWrapMeta(id, method) {
-  return cacheWrap(`${META_KEY_PREFIX}:${id}`, method, { ttl: META_TTL });
+  // Usa MongoDB para meta
+  return cacheWrapMongo(`${META_KEY_PREFIX}:${id}`, method, META_TTL);
 }
 
 module.exports = { cacheWrapCatalog, cacheWrapMeta, cache, redisInstance };

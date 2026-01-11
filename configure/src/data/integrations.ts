@@ -30,11 +30,17 @@ export const integrations: Integration[] = [
     icon: "https://mdblist.com/static/mdblist.png",
     description: "Integrate your MDBList lists to expand your content library.",
   },
-    {
+  {
     id: "gemini",
     name: "Gemini AI Search",
     icon: "https://www.shutterstock.com/image-vector/simple-ai-search-icon-can-600nw-2483540907.jpg",
     description: "Improve your searches using Google Gemini's artificial intelligence.",
+  },
+  {
+    id: "groq",
+    name: "Groq AI Search",
+    icon: "https://github.com/groq.png",
+    description: "Ultra-fast AI search using Groq (Llama 3).",
   },
   {
     id: "trakt",

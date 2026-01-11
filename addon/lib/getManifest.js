@@ -132,6 +132,7 @@ async function getManifest(config) {
   const language = config.language || DEFAULT_LANGUAGE;
   const tmdbPrefix = config.tmdbPrefix === "true";
   const provideImdbId = config.provideImdbId === "true";
+  const returnImdbId = config.returnImdbId === "true";
   const sessionId = config.sessionId;
   const userCatalogs = config.catalogs || getDefaultCatalogs();
   const translatedCatalogs = loadTranslations(language);
@@ -142,25 +143,43 @@ async function getManifest(config) {
   }
 
   const years = generateArrayOfYears(20);
-  const genres_movie = await getGenreList(language, "movie").then(genres => {
+  const genres_movie = await getGenreList(language, "movie", config).then(genres => {
+    if (!Array.isArray(genres)) {
+      console.error("TMDB genres_movie is not an array:", genres);
+      return [];
+    }
     const sortedGenres = genres.map(el => el.name).sort();
     return sortedGenres;
+  }).catch(err => {
+    console.error("Error fetching movie genres:", err.message);
+    return [];
   });
-
-  const genres_series = await getGenreList(language, "series").then(genres => {
+  const genres_series = await getGenreList(language, "series", config).then(genres => {
+    if (!Array.isArray(genres)) {
+      console.error("TMDB genres_series is not an array:", genres);
+      return [];
+    }
     const sortedGenres = genres.map(el => el.name).sort();
     return sortedGenres;
-  });
+  }).catch(err => {
+    console.error("Error fetching series genres:", err.message);
+    return [];
+  })
 
-  const languagesArray = await getLanguages();
+  const languagesArray = await getLanguages(config);
   const filterLanguages = setOrderLanguage(language, languagesArray);
   const isMDBList = (id) => id.startsWith("mdblist.");
   const options = { years, genres_movie, genres_series, filterLanguages };
+
+  const isTraktCatalog = (id) => id.startsWith("trakt.");
 
   let catalogs = await Promise.all(userCatalogs
     .filter(userCatalog => {
       const catalogDef = getCatalogDefinition(userCatalog.id);
       if (isMDBList(userCatalog.id)) return true;
+      if (isTraktCatalog(userCatalog.id)) {
+        return !!config.traktAccessToken;
+      }
       if (!catalogDef) return false;
       if (catalogDef.requiresAuth && !sessionId) return false;
       return true;
@@ -168,6 +187,19 @@ async function getManifest(config) {
     .map(userCatalog => {
       if (isMDBList(userCatalog.id)) {
         return createMDBListCatalog(userCatalog, config.mdblistkey);
+      }
+      if (isTraktCatalog(userCatalog.id)) {
+        // Catálogos Trakt não precisam de definição especial, apenas retornar o catálogo básico
+        return {
+          id: userCatalog.id,
+          type: userCatalog.type,
+          name: userCatalog.name || (userCatalog.id.includes('watchlist') ? 'Trakt Watchlist' : 'Trakt Recommendations'),
+          pageSize: 20,
+          extra: [
+            { name: "genre", options: [], isRequired: false },
+            { name: "skip" }
+          ]
+        };
       }
       const catalogDef = getCatalogDefinition(userCatalog.id);
       
@@ -205,7 +237,7 @@ async function getManifest(config) {
     catalogs = [...catalogs, searchCatalogMovie, searchCatalogSeries];
   }
 
-  if (config.geminikey) {
+  if (config.geminikey || config.groqkey) {
     const aiSearchCatalogMovie = {
       id: "tmdb.aisearch",
       type: "movie",
@@ -226,8 +258,9 @@ async function getManifest(config) {
   const activeConfigs = [
     `Language: ${language}`,
     `TMDB Account: ${sessionId ? 'Connected' : 'Not Connected'}`,
+    `Trakt Integration: ${config.traktAccessToken ? 'Connected' : 'Not Connected'}`,
     `MDBList Integration: ${config.mdblistkey ? 'Connected' : 'Not Connected'}`,
-    `IMDb Integration: ${provideImdbId ? 'Enabled' : 'Disabled'}`,
+    `IMDb Integration: ${provideImdbId || returnImdbId ? "Enabled" : "Disabled"}`,
     `RPDB Integration: ${config.rpdbkey ? 'Enabled' : 'Disabled'}`,
     `Search: ${config.searchEnabled !== "false" ? 'Enabled' : 'Disabled'}`,
     `Active Catalogs: ${catalogs.length}`
@@ -243,7 +276,7 @@ async function getManifest(config) {
     description: "Stremio addon that provides rich metadata for movies and TV shows from TMDB, featuring customizable catalogs, multi-language support, favorites lists, watchlist, ratings, and IMDb integration. Current settings: " + activeConfigs,
     resources: ["catalog", "meta"],
     types: ["movie", "series"],
-    idPrefixes: provideImdbId ? ["tmdb:", "tt"] : ["tmdb:"],
+    idPrefixes: provideImdbId || returnImdbId ? ["tmdb:", "tt"] : ["tmdb:"],
     stremioAddonsConfig,
     behaviorHints: {
       configurable: true,

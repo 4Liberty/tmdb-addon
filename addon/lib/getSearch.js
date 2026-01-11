@@ -1,9 +1,12 @@
 require("dotenv").config();
 const { getTmdbClient } = require("../utils/getTmdbClient");
 const geminiService = require("../utils/gemini-service");
+const groqService = require("../utils/groq-service");
 const { transliterate } = require("transliteration");
 const { parseMedia } = require("../utils/parseProps");
 const { getGenreList } = require("./getGenreList");
+const { isMovieReleasedInRegion, isMovieReleasedDigitally } = require("./releaseFilter");
+const { rateLimitedMap, rateLimitedMapFiltered } = require("../utils/rateLimiter");
 
 function isNonLatin(text) {
   return /[^\u0000-\u007F]/.test(text);
@@ -22,11 +25,13 @@ async function getSearch(id, type, language, query, page, config) {
   const isAISearch = id === "tmdb.aisearch";
   let searchResults = [];
 
-  if (isAISearch && config.geminikey) {
-    try {
-      await geminiService.initialize(config.geminikey);
-      
-      const titles = await geminiService.searchWithAI(query, type);
+  if (isAISearch) {
+    // Prefer Groq if key is available
+    if (config.groqkey) {
+      try {
+        await groqService.initialize(config.groqkey);
+        const titles = await groqService.searchWithAI(query, type);
+        const genreList = await getGenreList(language, type, config);
 
       const genreList = await getGenreList(language, type, config);
       
@@ -48,19 +53,14 @@ async function getSearch(id, type, language, query, page, config) {
             if (res.results && res.results.length > 0) {
               return parseMedia(res.results[0], "tv", genreList);
             }
-          }
-          return null;
-        } catch (error) {
-          console.error(`Erro ao buscar detalhes para título "${title}":`, error);
-          return null;
-        }
-      });
+          },
+          { batchSize: 5, delayMs: 200 }
+        );
+        searchResults = results.filter(result => result !== null);
 
-      const results = await Promise.all(searchPromises);
-      searchResults = results.filter(result => result !== null);
-
-    } catch (error) {
-      console.error('Erro ao processar busca com IA:', error);
+      } catch (error) {
+        console.error('Error processing AI search:', error);
+      }
     }
   }
 
@@ -74,9 +74,13 @@ async function getSearch(id, type, language, query, page, config) {
       include_adult: config.includeAdult
     };
 
+    if ((config.strictRegionFilter === "true" || config.strictRegionFilter === true) && language && language.split('-')[1]) {
+      parameters.region = language.split('-')[1];
+    }
+
     if (config.ageRating) {
       parameters.certification_country = "US";
-      switch(config.ageRating) {
+      switch (config.ageRating) {
         case "G":
           parameters.certification = type === "movie" ? "G" : "TV-G";
           break;
@@ -170,6 +174,63 @@ async function getSearch(id, type, language, query, page, config) {
       });
     }
   }
+
+  // Final filter for strict region mode - checks actual regional release dates
+  // (catches results from all paths: main search, fallback search, and person credits)
+  if ((config.strictRegionFilter === "true" || config.strictRegionFilter === true) && language && language.split('-')[1]) {
+    const region = language.split('-')[1];
+
+    if (type === "movie") {
+      // For movies, check actual regional release dates with rate limiting
+      const releaseChecks = await rateLimitedMapFiltered(
+        searchResults,
+        async (item) => {
+          // Extract TMDB ID from item.id (format: "tmdb:123456")
+          const tmdbId = item.id ? parseInt(item.id.replace('tmdb:', ''), 10) : null;
+          if (!tmdbId) return item; // Keep if no ID
+
+          const released = await isMovieReleasedInRegion(tmdbId, region, config);
+          return released ? item : null;
+        },
+        { batchSize: 5, delayMs: 200 }
+      );
+
+      searchResults = releaseChecks;
+    } else {
+      // For TV shows, use first_air_date (not region-specific but best available)
+      const today = new Date().toISOString().split('T')[0];
+      searchResults = searchResults.filter(item => {
+        if (!item.year) return true;
+        const itemYear = parseInt(item.year, 10);
+        const currentYear = new Date().getFullYear();
+        // Exclude future years
+        if (itemYear > currentYear) return false;
+        return true;
+      });
+    }
+  }
+
+  // Apply digital release filter for movies (global check) - independent from strict region mode
+  const isDigitalFilterMode = (config.digitalReleaseFilter === "true" || config.digitalReleaseFilter === true);
+  const isStrictMode = (config.strictRegionFilter === "true" || config.strictRegionFilter === true);
+
+  if (isDigitalFilterMode && !isStrictMode && type === "movie") {
+    const digitalChecks = await rateLimitedMapFiltered(
+      searchResults,
+      async (item) => {
+        const tmdbId = item.id ? parseInt(item.id.replace('tmdb:', ''), 10) : null;
+        if (!tmdbId) return item; // Keep if no ID
+
+        const released = await isMovieReleasedDigitally(tmdbId, config);
+        return released ? item : null;
+      },
+      { batchSize: 5, delayMs: 200 }
+    );
+
+    searchResults = digitalChecks;
+  }
+
+
 
   return Promise.resolve({ query, metas: searchResults });
 }

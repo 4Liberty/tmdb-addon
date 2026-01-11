@@ -5,9 +5,14 @@ interface AddonConfig {
   rpdbkey?: string;
   fanartApiKey?: string;
   geminikey?: string;
+  groqkey?: string;
   mdblistkey?: string;
+  traktAccessToken?: string;
+  traktRefreshToken?: string;
+  tmdbApiKey?: string;
   includeAdult?: boolean;
   provideImdbId?: boolean;
+  returnImdbId?: boolean;
   tmdbPrefix?: boolean;
   hideEpisodeThumbnails?: boolean;
   language?: string;
@@ -25,6 +30,10 @@ interface AddonConfig {
   }>;
   hideInCinemaTag?: boolean;
   castCount?: number;
+  showAgeRatingInGenres?: boolean;
+  enableAgeRating?: boolean;
+  showAgeRatingWithImdbRating?: boolean;
+  strictRegionFilter?: boolean;
 }
 
 export function generateAddonUrl(config: AddonConfig): string {
@@ -33,7 +42,11 @@ export function generateAddonUrl(config: AddonConfig): string {
     rpdbkey: config.rpdbkey || undefined,
     fanartApiKey: config.fanartApiKey || undefined,
     geminikey: config.geminikey || undefined,
+    groqkey: config.groqkey || undefined,
     mdblistkey: config.mdblistkey || undefined,
+    traktAccessToken: config.traktAccessToken || undefined,
+    traktRefreshToken: config.traktRefreshToken || undefined,
+    tmdbApiKey: config.tmdbApiKey || undefined,
     sessionId: config.sessionId || undefined,
     traktAccessToken: config.traktAccessToken || undefined,
     traktRefreshToken: config.traktRefreshToken || undefined,
@@ -47,11 +60,16 @@ export function generateAddonUrl(config: AddonConfig): string {
       })),
     includeAdult: config.includeAdult === true ? "true" : undefined,
     provideImdbId: config.provideImdbId === true ? "true" : undefined,
+    returnImdbId: config.returnImdbId === true ? "true" : undefined,
     tmdbPrefix: config.tmdbPrefix === true ? "true" : undefined,
     hideEpisodeThumbnails: config.hideEpisodeThumbnails === true ? "true" : undefined,
     searchEnabled: config.searchEnabled === false ? "false" : undefined,
     hideInCinemaTag: config.hideInCinemaTag === true ? "true" : undefined,
     castCount: typeof config.castCount === "number" ? config.castCount : undefined,
+    enableAgeRating: typeof config.enableAgeRating === "boolean" ? String(config.enableAgeRating) : undefined,
+    showAgeRatingInGenres: typeof config.showAgeRatingInGenres === "boolean" ? String(config.showAgeRatingInGenres) : undefined,
+    showAgeRatingWithImdbRating: typeof config.showAgeRatingWithImdbRating === "boolean" ? String(config.showAgeRatingWithImdbRating) : undefined,
+    strictRegionFilter: typeof config.strictRegionFilter === "boolean" ? String(config.strictRegionFilter) : undefined,
   };
 
   const cleanConfig = Object.fromEntries(
@@ -59,6 +77,6 @@ export function generateAddonUrl(config: AddonConfig): string {
   );
 
   const compressed = compressToEncodedURIComponent(JSON.stringify(cleanConfig));
-  
+
   return `${window.location.origin}/${compressed}/manifest.json`;
 }

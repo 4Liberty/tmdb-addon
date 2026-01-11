@@ -52,7 +52,7 @@ const CatalogColumn = ({
 );
 
 const Catalogs = () => {
-  const { sessionId, mdblistkey, streaming, catalogs, setCatalogs } = useConfig();
+  const { sessionId, mdblistkey, traktAccessToken, streaming, catalogs, setCatalogs } = useConfig();
 
   const mouseSensor = useSensor(MouseSensor, {
     activationConstraint: {
@@ -73,6 +73,8 @@ const Catalogs = () => {
     const allCatalogs = [
       ...baseCatalogs,
       ...(sessionId ? authCatalogs : []),
+      // Catálogos Trakt são adicionados pelo componente de integração quando conecta
+      // Não adicionamos aqui para evitar duplicação
       ...(streaming?.length
         ? streaming.flatMap((serviceId) => streamingCatalogs[serviceId] || [])
         : []),

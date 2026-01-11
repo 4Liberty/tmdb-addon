@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useConfig } from "@/contexts/ConfigContext";
 import { Button } from "@/components/ui/button";
 import { DialogClose } from "@/components/ui/dialog";
@@ -6,9 +6,10 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { AlertCircle, Loader2 } from "lucide-react";
 
 export default function TMDB() {
-  const { sessionId, setSessionId } = useConfig();
+  const { sessionId, setSessionId, saveConfigToStorage } = useConfig();
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const popupCheckIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const readErrorMessage = async (response: Response) => {
     try {
@@ -31,6 +32,7 @@ export default function TMDB() {
 
   const handleRequestToken = useCallback(async (requestToken: string) => {
     setIsLoading(true);
+    setError("");
     try {
       const response = await fetch(`/session_id?request_token=${requestToken}`);
       if (!response.ok) {
@@ -52,12 +54,44 @@ export default function TMDB() {
   }, [setSessionId]);
 
   useEffect(() => {
+    // Escuta mensagens do popup OAuth
+    const handleMessage = (event: MessageEvent) => {
+      // Verifica a origem da mensagem por segurança
+      if (event.origin !== window.location.origin) {
+        return;
+      }
+
+      if (event.data.type === 'tmdb_oauth') {
+        // Limpa o intervalo de verificação do popup
+        if (popupCheckIntervalRef.current) {
+          clearInterval(popupCheckIntervalRef.current);
+          popupCheckIntervalRef.current = null;
+        }
+        handleRequestToken(event.data.requestToken);
+      } else if (event.data.type === 'oauth_error') {
+        // Limpa o intervalo de verificação do popup
+        if (popupCheckIntervalRef.current) {
+          clearInterval(popupCheckIntervalRef.current);
+          popupCheckIntervalRef.current = null;
+        }
+        setError(event.data.errorDescription || event.data.error || 'Authentication failed');
+        setIsLoading(false);
+      }
+    };
+
+    window.addEventListener('message', handleMessage);
+
+    // Fallback: ainda verifica URL params caso não seja popup
     const urlParams = new URLSearchParams(window.location.search);
     const requestToken = urlParams.get('request_token');
 
-    if (requestToken) {
+    if (requestToken && !window.opener) {
       handleRequestToken(requestToken);
     }
+
+    return () => {
+      window.removeEventListener('message', handleMessage);
+    };
   }, [handleRequestToken]);
 
   const handleLogin = async () => {

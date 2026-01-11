@@ -8,13 +8,24 @@ export type CatalogConfig = {
   enabled: boolean;
 };
 
+export type RPDBMediaTypes = {
+  poster: boolean;
+  logo: boolean;
+  backdrop: boolean;
+};
+
 export type ConfigContextType = {
   rpdbkey: string;
   fanartApiKey: string;
   geminikey: string;
+  groqkey: string;
   mdblistkey: string;
+  traktAccessToken: string;
+  traktRefreshToken: string;
+  tmdbApiKey: string;
   includeAdult: boolean;
   provideImdbId: boolean;
+  returnImdbId: boolean;
   tmdbPrefix: boolean;
   hideEpisodeThumbnails: boolean;
   language: string;
@@ -27,12 +38,22 @@ export type ConfigContextType = {
   searchEnabled: boolean;
   hideInCinemaTag: boolean;
   castCount: number | undefined;
+  showAgeRatingInGenres: boolean;
+  enableAgeRating: boolean;
+  showAgeRatingWithImdbRating: boolean;
+  strictRegionFilter: boolean;
+  digitalReleaseFilter: boolean;
   setRpdbkey: (rpdbkey: string) => void;
   setFanartApiKey: (apiKey: string) => void;
   setGeminiKey: (geminikey: string) => void;
+  setGroqKey: (groqkey: string) => void;
   setMdblistkey: (mdblistkey: string) => void;
+  setTraktAccessToken: (traktAccessToken: string) => void;
+  setTraktRefreshToken: (traktRefreshToken: string) => void;
+  setTmdbApiKey: (tmdbApiKey: string) => void;
   setIncludeAdult: (includeAdult: boolean) => void;
   setProvideImdbId: (provideImdbId: boolean) => void;
+  setReturnImdbId: (returnImdbId: boolean) => void;
   setTmdbPrefix: (tmdbPrefix: boolean) => void;
   setHideEpisodeThumbnails: (hideEpisodeThumbnails: boolean) => void;
   setLanguage: (language: string) => void;
@@ -45,6 +66,11 @@ export type ConfigContextType = {
   setSearchEnabled: (enabled: boolean) => void;
   setHideInCinemaTag: (hide: boolean) => void;
   setCastCount: (count: number | undefined) => void;
+  setShowAgeRatingInGenres: (show: boolean) => void;
+  setEnableAgeRating: (enable: boolean) => void;
+  setShowAgeRatingWithImdbRating: (show: boolean) => void;
+  setStrictRegionFilter: (enable: boolean) => void;
+  setDigitalReleaseFilter: (enable: boolean) => void;
   loadConfigFromUrl: () => void;
   loadConfigFromString: (input: string) => void;
 };

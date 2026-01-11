@@ -33,13 +33,13 @@ async function getGenresFromMDBList(listId, apiKey) {
       )
     ].sort();
     return genres;
-  } catch(err) {
+  } catch (err) {
     console.error("ERROR in getGenresFromMDBList:", err);
     return [];
   }
 }
 
-async function parseMDBListItems(items, type, genreFilter, language, rpdbkey) {
+async function parseMDBListItems(items, type, genreFilter, language, config = {}) {
   const availableGenres = [
     ...new Set(
       items.flatMap(item =>
@@ -83,7 +83,9 @@ async function parseMDBListItems(items, type, genreFilter, language, rpdbkey) {
       .catch(err => {
         console.error(`Erro ao buscar metadados para ${item.id} from MDBList:`, err.message);
         return null;
-      })
+      }
+    },
+    { batchSize: 5, delayMs: 200 }
   );
 
   const metas = (await Promise.all(metaPromises)).filter(Boolean); // Filter out null results

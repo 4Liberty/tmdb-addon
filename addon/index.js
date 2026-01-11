@@ -13,9 +13,11 @@ const { getMeta } = require("./lib/getMeta");
 const { getTmdb } = require("./lib/getTmdb");
 const { cacheWrapMeta } = require("./lib/getCache");
 const { getTrending } = require("./lib/getTrending");
-const { parseConfig, getRpdbPoster, checkIfExists } = require("./utils/parseProps");
+const { parseConfig, getRpdbPoster } = require("./utils/parseProps");
 const { getRequestToken, getSessionId } = require("./lib/getSession");
 const { getFavorites, getWatchList } = require("./lib/getPersonalLists");
+const { getTraktAuthUrl, getTraktAccessToken } = require("./lib/getTraktSession");
+const { getTraktWatchlist, getTraktRecommendations } = require("./lib/getTraktLists");
 const { blurImage } = require('./utils/imageProcessor');
 const { toCanonicalType } = require('./utils/typeCanonical');
 const { getTraktAuthUrl, getTraktAccessToken } = require('./lib/getTraktSession');
@@ -32,8 +34,15 @@ const {
 
 addon.use(analytics.middleware);
 addon.use(favicon(path.join(__dirname, '../public/favicon.png')));
-addon.use(express.static(path.join(__dirname, '../public')));
-addon.use(express.static(path.join(__dirname, '../dist')));
+const staticOptions = {
+  setHeaders: function (res, path, stat) {
+    res.set("Access-Control-Allow-Origin", "*");
+    res.set("Access-Control-Allow-Headers", "*");
+  }
+};
+
+addon.use(express.static(path.join(__dirname, '../public'), staticOptions));
+addon.use(express.static(path.join(__dirname, '../dist'), staticOptions));
 
 // Track unique users (best-effort; no-op if caching is disabled)
 addon.use((req, _res, next) => {
@@ -120,11 +129,99 @@ addon.get("/session_id", async function (req, res) {
   }
 });
 
-addon.use('/configure', express.static(path.join(__dirname, '../dist')));
+addon.get("/trakt_auth_url", async function (req, res) {
+  try {
+    // Detecta o host da requisição atual (suporta proxies reversos)
+    let protocol = req.protocol;
+    if (!protocol || protocol === 'http') {
+      // Verifica headers de proxy reverso
+      const forwardedProto = req.headers['x-forwarded-proto'];
+      if (forwardedProto) {
+        protocol = forwardedProto.split(',')[0].trim();
+      } else if (req.secure || req.headers['x-forwarded-ssl'] === 'on') {
+        protocol = 'https';
+      }
+    }
+
+    const host = req.get('host') || req.headers.host || req.headers['x-forwarded-host'];
+    const requestHost = process.env.HOST_NAME || `${protocol}://${host}`;
+
+    const { authUrl, state } = await getTraktAuthUrl(requestHost);
+    res.setHeader("Access-Control-Allow-Origin", "*");
+    res.setHeader("Access-Control-Allow-Headers", "*");
+    res.setHeader("Content-Type", "application/json");
+    res.json({ authUrl, state });
+  } catch (error) {
+    console.error('Error getting Trakt auth URL:', error);
+    res.status(500).json({ error: error.message || 'Internal server error' });
+  }
+});
+
+addon.get("/trakt_access_token", async function (req, res) {
+  try {
+    const code = req.query.code;
+
+    if (!code) {
+      res.status(400).json({ error: 'Authorization code is required' });
+      return;
+    }
+
+    // Detecta o redirect_uri da requisição (o Trakt envia de volta o mesmo que foi usado)
+    // Ou usa o host atual para construir (suporta proxies reversos)
+    let protocol = req.protocol;
+    if (!protocol || protocol === 'http') {
+      // Verifica headers de proxy reverso
+      const forwardedProto = req.headers['x-forwarded-proto'];
+      if (forwardedProto) {
+        protocol = forwardedProto.split(',')[0].trim();
+      } else if (req.secure || req.headers['x-forwarded-ssl'] === 'on') {
+        protocol = 'https';
+      }
+    }
+
+    const host = req.get('host') || req.headers.host || req.headers['x-forwarded-host'];
+    const requestHost = process.env.HOST_NAME || `${protocol}://${host}`;
+    // Usa o mesmo redirect_uri que foi usado na autenticação (oauth-callback)
+    const redirectUri = `${requestHost}/configure/oauth-callback`;
+
+    const response = await getTraktAccessToken(code, redirectUri);
+
+    // Verifica se houve erro na requisição
+    if (response?.error || response?.success === false) {
+      res.status(400).json({ error: response.error || response.status_message || 'Failed to get access token' });
+      return;
+    }
+
+    // Retorna o objeto com access_token, refresh_token, etc.
+    res.setHeader("Access-Control-Allow-Origin", "*");
+    res.setHeader("Access-Control-Allow-Headers", "*");
+    res.setHeader("Content-Type", "application/json");
+    res.json(response);
+  } catch (error) {
+    console.error('Error getting Trakt access token:', error);
+    res.status(500).json({ error: error.message || 'Internal server error' });
+  }
+});
+
+// Serve arquivos estáticos do React app
+addon.use('/configure', express.static(path.join(__dirname, '../dist'), {
+  fallthrough: true // Continua para a próxima rota se não encontrar o arquivo
+}));
 
 addon.use('/configure', (req, res, next) => {
   const config = parseConfig(req.params.catalogChoices) || {};
   next();
+});
+
+// Rota para /configure (sem sub-rotas)
+addon.get('/configure', function (req, res) {
+  res.sendFile(path.join(__dirname, '../dist/index.html'));
+});
+
+// Rota catch-all para servir o React app em todas as rotas /configure/*
+// Usa * para capturar qualquer coisa após /configure/
+addon.get(/^\/configure\/.+$/, function (req, res) {
+  res.sendFile(path.join(__dirname, '../dist/index.html'));
 });
 
 addon.get('/:catalogChoices?/configure', function (req, res) {
@@ -266,7 +363,7 @@ addon.get("/:catalogChoices?/catalog/:type/:id/:extra?.json", async function (re
     return;
   }
   const cacheOpts = {
-    cacheMaxAge: 1 * 24 * 60 * 60, 
+    cacheMaxAge: 1 * 24 * 60 * 60,
     staleRevalidate: 7 * 24 * 60 * 60,
     staleError: 14 * 24 * 60 * 60,
   };
@@ -420,27 +517,48 @@ addon.get("/:catalogChoices?/meta/:type/:id.json", async function (req, res) {
   }
 });
 
+addon.get("/api/proxy/status", async function (req, res) {
+  try {
+    const proxyStatus = {
+      enabled: PROXY_CONFIG.enabled,
+      host: PROXY_CONFIG.host,
+      port: PROXY_CONFIG.port,
+      protocol: PROXY_CONFIG.protocol,
+      working: false
+    };
+
+    if (PROXY_CONFIG.enabled) {
+      proxyStatus.working = await testProxy();
+    }
+
+    respond(res, proxyStatus);
+  } catch (error) {
+    console.error('Error checking proxy status:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 addon.get("/api/image/blur", async function (req, res) {
   const imageUrl = req.query.url;
-  
+
   if (!imageUrl) {
-    return res.status(400).json({ error: 'URL da imagem não fornecida' });
+    return res.status(400).json({ error: 'Image URL not provided' });
   }
 
   try {
     const blurredImageBuffer = await blurImage(imageUrl);
-    
+
     if (!blurredImageBuffer) {
-      return res.status(500).json({ error: 'Erro ao processar imagem' });
+      return res.status(500).json({ error: 'Error processing image' });
     }
 
     res.setHeader('Content-Type', 'image/jpeg');
     res.setHeader('Cache-Control', 'public, max-age=31536000');
-    
+
     res.send(blurredImageBuffer);
   } catch (error) {
-    console.error('Erro na rota de blur:', error);
-    res.status(500).json({ error: 'Erro interno do servidor' });
+    console.error('Error in blur route:', error);
+    res.status(500).json({ error: 'Internal server error' });
   }
 });
 

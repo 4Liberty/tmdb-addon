@@ -28,4 +28,4 @@ async function getSessionId(requestToken) {
     return response?.data?.session_id;
 }
 
-module.exports = { getRequestToken, getSessionId }
+module.exports = { getRequestToken, getSessionId };

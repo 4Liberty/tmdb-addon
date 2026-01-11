@@ -20,13 +20,13 @@ function genSeasonsString(seasons) {
 
 function getThumbnailUrl(stillPath, hideEpisodeThumbnails) {
   if (!stillPath) return null;
-  
+
   const baseImageUrl = `https://image.tmdb.org/t/p/w500${stillPath}`;
-  
+
   if (hideEpisodeThumbnails) {
     return `${process.env.HOST_NAME}/api/image/blur?url=${encodeURIComponent(baseImageUrl)}`;
   }
-  
+
   return baseImageUrl;
 }
 
@@ -37,7 +37,7 @@ async function getEpisodes(language, tmdbId, imdb_id, seasons, config = {}) {
   const difOrder = diferentOrder.find((data) => data.tmdbId === tmdbId);
   const difImdbId = diferentImdbId.find((data) => data.tmdbId === tmdbId);
   imdb_id = !difImdbId ? imdb_id : difImdbId.imdbId;
-  
+
   if (difOrder != undefined) {
     return await moviedb
       .episodeGroup({ language: language, id: difOrder.episodeGroupId })
@@ -55,6 +55,7 @@ async function getEpisodes(language, tmdbId, imdb_id, seasons, config = {}) {
               overview: episode.overview,
               description: episode.overview,
               rating: episode.vote_average,
+              runtime: Utils.parseRunTime(episode.runtime),
               firstAired: difOrder.watchOrderOnly
                 ? new Date(Date.parse(group.episodes[0].air_date) + index)
                 : new Date(Date.parse(episode.air_date) + index),
@@ -89,6 +90,7 @@ async function getEpisodes(language, tmdbId, imdb_id, seasons, config = {}) {
                     overview: episode.overview,
                     description: episode.overview,
                     rating: episode.vote_average.toString(),
+                    runtime: Utils.parseRunTime(episode.runtime),
                     firstAired: new Date(
                       Date.parse(episode.air_date) + episode.season_number
                     ),

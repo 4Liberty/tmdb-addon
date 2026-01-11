@@ -236,13 +236,13 @@ export default function Home() {
       try {
         const response = await fetch('https://cinemeta-catalogs.strem.io/top/catalog/movie/top.json');
         const data = await response.json();
-        
+
         const moviesWithId = data.metas.filter(movie => movie.imdb_id);
-        
+
         if (moviesWithId.length > 0) {
           const randomIndex = Math.floor(Math.random() * moviesWithId.length);
           const randomMovie = moviesWithId[randomIndex];
-          
+
           const highQualityImageUrl = `https://images.metahub.space/background/medium/${randomMovie.imdb_id}/img`;
           setBackgroundUrl(highQualityImageUrl);
         }
@@ -255,11 +255,79 @@ export default function Home() {
     fetchPopularMovies();
   }, []);
 
+  useEffect(() => {
+    const trackAndFetchUserCount = async () => {
+      try {
+        // Obtém a URL base da instância atual
+        const baseUrl = window.location.origin;
+        
+        // Rastreia o usuário atual
+        await fetch(`${baseUrl}/api/stats/track-user`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        });
+
+        // Busca o contador total de usuários
+        const response = await fetch(`${baseUrl}/api/stats/users`);
+        if (response.ok) {
+          const data = await response.json();
+          setUserCount(data.count);
+        }
+      } catch (error) {
+        console.error('Error fetching user count:', error);
+        // Não mostra erro ao usuário, apenas falha silenciosamente
+      }
+    };
+
+    trackAndFetchUserCount();
+    
+    // Atualiza o contador a cada 5 minutos
+    const interval = setInterval(trackAndFetchUserCount, 5 * 60 * 1000);
+    
+    return () => clearInterval(interval);
+  }, []);
+
+  const [isValidating, setIsValidating] = useState(false);
+  const [isKeyValid, setIsKeyValid] = useState<boolean | null>(null);
+
+  useEffect(() => {
+    if (!tmdbApiKey) {
+      setIsKeyValid(null);
+      setIsValidating(false);
+      return;
+    }
+
+    setIsValidating(true);
+    setIsKeyValid(null);
+
+    const timer = setTimeout(async () => {
+      try {
+        const res = await fetch(`https://api.themoviedb.org/3/authentication?api_key=${tmdbApiKey}`);
+        setIsKeyValid(res.ok);
+      } catch (error) {
+        setIsKeyValid(false);
+      } finally {
+        setIsValidating(false);
+      }
+    }, 1000);
+
+    return () => clearTimeout(timer);
+  }, [tmdbApiKey]);
+
+  const getKeyStatusColor = () => {
+    if (!tmdbApiKey) return 'bg-yellow-500/10 border-yellow-500/30';
+    if (isValidating) return 'bg-blue-500/10 border-blue-500/30';
+    if (isKeyValid) return 'bg-green-500/10 border-green-500/30';
+    return 'bg-red-500/10 border-red-500/30';
+  };
+
   return (
     <div className="relative min-h-screen overflow-hidden">
       <div className="fixed inset-0 z-0">
         <div className="absolute inset-0 bg-gradient-to-b from-black/70 via-black/50 to-black/80 z-10" />
-        <div 
+        <div
           className="absolute inset-0 blur-sm"
           style={{
             backgroundImage: `url(${backgroundUrl})`,
@@ -286,10 +354,31 @@ export default function Home() {
             The Movie Database Addon
           </h1>
 
-          <p className="text-xl sm:text-2xl text-gray-300 mb-8">
+          <p className="text-xl sm:text-2xl text-gray-300 mb-4">
             Explore a vast catalog of movies and TV shows with metadata provided by TMDB.
             Version {packageJson.version}
           </p>
+          
+          {userCount !== null && (
+            <div className="mb-8 flex items-center justify-center gap-2 text-sm text-gray-400">
+              <svg 
+                className="w-4 h-4" 
+                fill="none" 
+                stroke="currentColor" 
+                viewBox="0 0 24 24"
+              >
+                <path 
+                  strokeLinecap="round" 
+                  strokeLinejoin="round" 
+                  strokeWidth={2} 
+                  d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" 
+                />
+              </svg>
+              <span>
+                <strong className="text-white">{userCount.toLocaleString()}</strong> unique users
+              </span>
+            </div>
+          )}
 
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-8">
             <div className="w-full sm:w-64">
