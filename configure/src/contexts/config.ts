@@ -16,6 +16,7 @@ export type RPDBMediaTypes = {
 
 export type ConfigContextType = {
   rpdbkey: string;
+  rpdbMediaTypes: RPDBMediaTypes;
   fanartApiKey: string;
   geminikey: string;
   groqkey: string;
@@ -30,8 +31,6 @@ export type ConfigContextType = {
   hideEpisodeThumbnails: boolean;
   language: string;
   sessionId: string;
-  traktAccessToken: string;
-  traktRefreshToken: string;
   streaming: string[];
   catalogs: CatalogConfig[];
   ageRating: string | undefined;
@@ -44,6 +43,7 @@ export type ConfigContextType = {
   strictRegionFilter: boolean;
   digitalReleaseFilter: boolean;
   setRpdbkey: (rpdbkey: string) => void;
+  setRpdbMediaTypes: (types: RPDBMediaTypes) => void;
   setFanartApiKey: (apiKey: string) => void;
   setGeminiKey: (geminikey: string) => void;
   setGroqKey: (groqkey: string) => void;
@@ -58,8 +58,6 @@ export type ConfigContextType = {
   setHideEpisodeThumbnails: (hideEpisodeThumbnails: boolean) => void;
   setLanguage: (language: string) => void;
   setSessionId: (sessionId: string) => void;
-  setTraktAccessToken: (token: string) => void;
-  setTraktRefreshToken: (token: string) => void;
   setStreaming: (streaming: string[]) => void;
   setCatalogs: (catalogs: CatalogConfig[] | ((prev: CatalogConfig[]) => CatalogConfig[])) => void;
   setAgeRating: (ageRating: string | undefined) => void;

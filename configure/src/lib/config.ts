@@ -17,8 +17,6 @@ interface AddonConfig {
   hideEpisodeThumbnails?: boolean;
   language?: string;
   sessionId?: string;
-  traktAccessToken?: string;
-  traktRefreshToken?: string;
   ageRating?: string;
   searchEnabled?: boolean;
   catalogs?: Array<{
@@ -48,8 +46,6 @@ export function generateAddonUrl(config: AddonConfig): string {
     traktRefreshToken: config.traktRefreshToken || undefined,
     tmdbApiKey: config.tmdbApiKey || undefined,
     sessionId: config.sessionId || undefined,
-    traktAccessToken: config.traktAccessToken || undefined,
-    traktRefreshToken: config.traktRefreshToken || undefined,
     catalogs: config.catalogs
       ?.filter(catalog => catalog.enabled === false ? false : true)
       .map(({ id, type, name, showInHome }) => ({
