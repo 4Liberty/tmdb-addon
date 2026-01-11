@@ -24,7 +24,7 @@ export default function TMDB() {
     if (!message) return;
     if (
       /TMDB_API not configured/i.test(message) ||
-      /invalid api key|unauthorized|authentication failed/i.test(message)
+      /invalid api key|unauthorized|authentication failed|status\s*401|status\s*403|status code\s*401|status code\s*403/i.test(message)
     ) {
       setShowApiKeyInput(true);
     }
