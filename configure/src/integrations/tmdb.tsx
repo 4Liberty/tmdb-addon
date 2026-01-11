@@ -13,10 +13,22 @@ export default function TMDB() {
   const [isLoading, setIsLoading] = useState(false);
   const popupCheckIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const [tempApiKey, setTempApiKey] = useState(tmdbApiKey || "");
+  const [showApiKeyInput, setShowApiKeyInput] = useState(Boolean(tmdbApiKey));
 
   useEffect(() => {
     setTempApiKey(tmdbApiKey || "");
+    setShowApiKeyInput(Boolean(tmdbApiKey));
   }, [tmdbApiKey]);
+
+  const maybeRevealApiKeyInput = (message: string) => {
+    if (!message) return;
+    if (
+      /TMDB_API not configured/i.test(message) ||
+      /invalid api key|unauthorized|authentication failed/i.test(message)
+    ) {
+      setShowApiKeyInput(true);
+    }
+  };
 
   const readErrorMessage = async (response: Response) => {
     try {
@@ -47,6 +59,7 @@ export default function TMDB() {
       const response = await fetch(url);
       if (!response.ok) {
         const message = await readErrorMessage(response);
+        maybeRevealApiKeyInput(message);
         throw new Error(message || 'Failed to create session');
       }
       
@@ -56,7 +69,9 @@ export default function TMDB() {
       
       window.history.replaceState({}, '', window.location.pathname);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Failed to create TMDB session");
+      const message = e instanceof Error ? e.message : "Failed to create TMDB session";
+      maybeRevealApiKeyInput(message);
+      setError(message);
     } finally {
       setIsLoading(false);
     }
@@ -126,6 +141,7 @@ export default function TMDB() {
       const response = await fetch(url);
       if (!response.ok) {
         const message = await readErrorMessage(response);
+        maybeRevealApiKeyInput(message);
         throw new Error(message || 'Failed to get request token');
       }
       
@@ -135,7 +151,9 @@ export default function TMDB() {
       const tmdbAuthUrl = `https://www.themoviedb.org/authenticate/${requestToken}?redirect_to=${encodeURIComponent(redirectTo)}`;
       window.location.href = tmdbAuthUrl;
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Failed to start TMDB authentication");
+      const message = e instanceof Error ? e.message : "Failed to start TMDB authentication";
+      maybeRevealApiKeyInput(message);
+      setError(message);
       setIsLoading(false);
     }
   };
@@ -147,30 +165,32 @@ export default function TMDB() {
   return (
     <div className="space-y-6">
       <div className="flex flex-col space-y-4">
-        <form className="space-y-2" onSubmit={(e) => e.preventDefault()}>
-          <Label htmlFor="tmdbApiKey">TMDB API Key (v3)</Label>
-          <Input
-            id="tmdbApiKey"
-            type="password"
-            placeholder="Enter your TMDB API key"
-            value={tempApiKey}
-            onChange={(e) => {
-              setTempApiKey(e.target.value);
-              setError("");
-            }}
-            autoComplete="off"
-          />
-          <div className="flex justify-end">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => setTmdbApiKey(tempApiKey)}
-              disabled={tempApiKey === tmdbApiKey}
-            >
-              Save Key
-            </Button>
-          </div>
-        </form>
+        {showApiKeyInput ? (
+          <form className="space-y-2" onSubmit={(e) => e.preventDefault()}>
+            <Label htmlFor="tmdbApiKey">TMDB API Key (v3) (only needed if server isn’t configured)</Label>
+            <Input
+              id="tmdbApiKey"
+              type="password"
+              placeholder="Enter your TMDB API key"
+              value={tempApiKey}
+              onChange={(e) => {
+                setTempApiKey(e.target.value);
+                setError("");
+              }}
+              autoComplete="off"
+            />
+            <div className="flex justify-end">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setTmdbApiKey(tempApiKey)}
+                disabled={tempApiKey === tmdbApiKey}
+              >
+                Save Key
+              </Button>
+            </div>
+          </form>
+        ) : null}
 
         {error && (
           <Alert variant="destructive">

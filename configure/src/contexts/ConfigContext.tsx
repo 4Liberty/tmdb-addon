@@ -243,8 +243,6 @@ export function ConfigProvider({ children }: { children: React.ReactNode }) {
           applyConfig(storedConfig);
           // Limpa o localStorage após restaurar
           localStorage.removeItem(CONFIG_STORAGE_KEY);
-          // Clean URL so request_token/code don't linger and retrigger flows.
-          window.history.replaceState({}, '', '/configure');
           return;
         }
       }
