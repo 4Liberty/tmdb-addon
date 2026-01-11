@@ -225,7 +225,7 @@ interface Movie {
 }
 
 export default function Home() {
-  const { language, setLanguage, loadConfigFromString } = useConfig();
+  const { language, setLanguage, loadConfigFromString, tmdbApiKey } = useConfig();
   const [backgroundUrl, setBackgroundUrl] = useState("");
   const [configLink, setConfigLink] = useState("");
   const [loadError, setLoadError] = useState<string>("");
