@@ -69,8 +69,8 @@ const getCacheKey = (
     tmdbId,
     config
 ) => {
-    const { enableAgeRating, showAgeRatingInGenres, showAgeRatingWithImdbRating, rpdbkey } = normalizeConfig(config);
-    return `${type}-${language}-${tmdbId}-${rpdbkey}-ageRating:${enableAgeRating}-${showAgeRatingInGenres}-${showAgeRatingWithImdbRating}`;
+    const { enableAgeRating, showAgeRatingInGenres, showAgeRatingWithImdbRating, rpdbkey, castCount } = normalizeConfig(config);
+    return `${type}-${language}-${tmdbId}-${rpdbkey}-cast:${castCount ?? 'all'}-ageRating:${enableAgeRating}-${showAgeRatingInGenres}-${showAgeRatingWithImdbRating}`;
 }
 
 async function getCachedImdbRating(imdbId, type) {
@@ -188,10 +188,13 @@ const buildMovieResponse = async (res, type, language, tmdbId, config = {}) => {
         resolvedAgeRating = extractAgeRating(res, type, language);
     }
 
+    const castData = Utils.parseCast(res.credits, castCount);
+
     const response = {
         imdb_id: res.imdb_id,
         country: Utils.parseCoutry(res.production_countries),
         description: res.overview,
+        cast: castData.map((el) => el.name),
         director: Utils.parseDirector(res.credits),
         genre: addAgeRatingToGenres(resolvedAgeRating, parsedGenres, showAgeRatingInGenres),
         imdbRating,
@@ -230,7 +233,7 @@ const buildMovieResponse = async (res, type, language, tmdbId, config = {}) => {
         },
         logo: processLogo(logo),
         app_extras: {
-            cast: Utils.parseCast(res.credits, castCount)
+            cast: castData
         }
     };
     if (hideInCinemaTag) delete response.imdb_id;
@@ -299,9 +302,12 @@ const buildTvResponse = async (res, type, language, tmdbId, config = {}) => {
         resolvedAgeRating = extractAgeRating(res, type, language);
     }
 
+    const castData = Utils.parseCast(res.credits, castCount);
+
     const response = {
         country: Utils.parseCoutry(res.production_countries),
         description: res.overview,
+        cast: castData.map((el) => el.name),
         genre: addAgeRatingToGenres(resolvedAgeRating, parsedGenres, showAgeRatingInGenres),
         imdbRating,
         imdb_id: res.external_ids?.imdb_id,
@@ -342,7 +348,7 @@ const buildTvResponse = async (res, type, language, tmdbId, config = {}) => {
         },
         logo: processLogo(logo),
         app_extras: {
-            cast: Utils.parseCast(res.credits, castCount)
+            cast: castData
         }
     };
     if (hideInCinemaTag) delete response.imdb_id;
