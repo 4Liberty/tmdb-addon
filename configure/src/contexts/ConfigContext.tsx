@@ -159,7 +159,13 @@ export function ConfigProvider({ children }: { children: React.ReactNode }) {
     const adult = asBool(config.includeAdult);
     if (adult !== undefined) setIncludeAdult(adult);
     const languageValue = asString(config.language);
-    if (languageValue !== undefined) setLanguage(languageValue);
+    // Migration: older configs defaulted to en-US. Treat missing/en-US as default and
+    // switch to Turkish unless the user explicitly chose another language.
+    if (languageValue === undefined || languageValue === "en-US") {
+      setLanguage("tr-TR");
+    } else {
+      setLanguage(languageValue);
+    }
     const hideCinema = asBool(config.hideInCinemaTag);
     if (hideCinema !== undefined) setHideInCinemaTag(hideCinema);
     if (config.castCount !== undefined) {
