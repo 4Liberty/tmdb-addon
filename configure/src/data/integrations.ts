@@ -45,7 +45,7 @@ export const integrations: Integration[] = [
   {
     id: "fanart",
     name: "Fanart.tv",
-    icon: "https://fanart.tv/wp-content/uploads/2020/01/cropped-fanart-logo-32x32.png",
+    icon: "https://fanart.tv/favicon.ico",
     description: "Provide a Fanart.tv API key to improve logos when available.",
   }
 ]; 

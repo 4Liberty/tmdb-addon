@@ -105,7 +105,7 @@ Notes:
 1. Visit [TMDB Developer](https://www.themoviedb.org/settings/api)
 2. Create an account if you don't have one
 3. Request an API key
-4. Use the API Read Access Token (v4 auth)
+4. Use the **API Key (v3 auth)** value for `TMDB_API` (this addon uses the v3 session flow).
 
 ### Fanart.tv API
 1. Visit [Fanart.tv API](https://fanart.tv/get-an-api-key/)

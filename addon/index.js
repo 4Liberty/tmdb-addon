@@ -91,22 +91,32 @@ addon.get("/", function (_, res) {
 
 addon.get("/request_token", async function (req, res) {
   try {
-    const requestToken = await getRequestToken()
+    const requestToken = await getRequestToken();
+    if (!requestToken) {
+      throw new Error('TMDB did not return a request token. Check TMDB_API (v3 API key) configuration.');
+    }
     respond(res, requestToken);
   } catch (error) {
-    console.error(`[ERROR] Failed to get request token:`, error);
-    res.status(500).json({ error: "Failed to get request token" });
+    const message = error?.message ? String(error.message) : String(error);
+    console.error(`[ERROR] Failed to get request token:`, message);
+    res.status(500).json({ error: "Failed to get request token", message });
   }
 });
 
 addon.get("/session_id", async function (req, res) {
   try {
-    const requestToken = req.query.request_token
-    const sessionId = await getSessionId(requestToken)
+    const requestToken = req.query.request_token;
+    if (!requestToken) return res.status(400).json({ error: 'Missing request_token' });
+
+    const sessionId = await getSessionId(requestToken);
+    if (!sessionId) {
+      throw new Error('TMDB did not return a session id. Ensure the request token was approved.');
+    }
     respond(res, sessionId);
   } catch (error) {
-    console.error(`[ERROR] Failed to get session ID:`, error);
-    res.status(500).json({ error: "Failed to get session ID" });
+    const message = error?.message ? String(error.message) : String(error);
+    console.error(`[ERROR] Failed to get session ID:`, message);
+    res.status(500).json({ error: "Failed to get session ID", message });
   }
 });
 

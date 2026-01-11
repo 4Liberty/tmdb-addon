@@ -1,5 +1,8 @@
 import { useConfig } from "@/contexts/ConfigContext";
 import { KoFiDialog } from "react-kofi";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import {
   Select,
   SelectContent,
@@ -222,8 +225,11 @@ interface Movie {
 }
 
 export default function Home() {
-  const { language, setLanguage } = useConfig();
+  const { language, setLanguage, loadConfigFromString } = useConfig();
   const [backgroundUrl, setBackgroundUrl] = useState("");
+  const [configLink, setConfigLink] = useState("");
+  const [loadError, setLoadError] = useState<string>("");
+  const [loadSuccess, setLoadSuccess] = useState<string>("");
 
   useEffect(() => {
     const fetchPopularMovies = async () => {
@@ -315,6 +321,54 @@ export default function Home() {
               className="w-full sm:w-auto"
             />
           </div>
+
+          <div className="bg-white/10 rounded-lg p-6 backdrop-blur-sm text-left space-y-3">
+            <h3 className="text-xl font-semibold">Load existing configuration</h3>
+            <p className="text-gray-300 text-sm">
+              Paste a manifest link (like <span className="font-mono">.../ENCODED/manifest.json</span>) to load and edit an existing setup.
+            </p>
+
+            {loadError && (
+              <Alert variant="destructive">
+                <AlertDescription>{loadError}</AlertDescription>
+              </Alert>
+            )}
+            {loadSuccess && !loadError && (
+              <Alert>
+                <AlertDescription>{loadSuccess}</AlertDescription>
+              </Alert>
+            )}
+
+            <div className="flex flex-col sm:flex-row gap-2">
+              <Input
+                value={configLink}
+                onChange={(e) => {
+                  setConfigLink(e.target.value);
+                  setLoadError("");
+                  setLoadSuccess("");
+                }}
+                placeholder="Paste manifest link here"
+                className="bg-white/10 border-white/20 text-white placeholder:text-gray-300"
+              />
+              <Button
+                type="button"
+                onClick={() => {
+                  try {
+                    setLoadError("");
+                    loadConfigFromString(configLink);
+                    setLoadSuccess("Configuration loaded. You can now edit and re-install.");
+                  } catch (err) {
+                    setLoadSuccess("");
+                    setLoadError(err instanceof Error ? err.message : "Failed to load configuration");
+                  }
+                }}
+                className="w-full sm:w-auto"
+              >
+                Load
+              </Button>
+            </div>
+          </div>
+
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 text-left">
             <div className="bg-white/10 rounded-lg p-6 backdrop-blur-sm">
               <h3 className="text-xl font-semibold mb-2">Movies</h3>

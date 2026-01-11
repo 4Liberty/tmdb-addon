@@ -46,6 +46,7 @@ export type ConfigContextType = {
   setHideInCinemaTag: (hide: boolean) => void;
   setCastCount: (count: number | undefined) => void;
   loadConfigFromUrl: () => void;
+  loadConfigFromString: (input: string) => void;
 };
 
 export const ConfigContext = createContext<ConfigContextType | undefined>(undefined); 
