@@ -1,24 +1,23 @@
 require('dotenv').config()
-const { MovieDb } = require('moviedb-promise')
-const moviedb = new MovieDb(process.env.TMDB_API)
+const { getTmdbClient } = require('../utils/getTmdbClient')
 
-async function getGenreList(language, type) {
-  if (type === "movie") {
-    const genre = await moviedb
-      .genreMovieList({language})
-      .then((res) => {
-        return res.genres;
-      })
-      .catch(console.error);
-      return genre
-  } else {
-    const genre = await moviedb
-    .genreTvList({language})
-    .then((res) => {
-      return res.genres;
-    })
-    .catch(console.error);
-    return genre
+const fallbackMovieGenres = require('../static/fallback-genres-movie.json');
+const fallbackSeriesGenres = require('../static/fallback-genres-series.json');
+
+async function getGenreList(language, type, config = {}) {
+  const moviedb = getTmdbClient(config);
+
+  try {
+    if (type === "movie") {
+      const res = await moviedb.genreMovieList({ language });
+      return res?.genres || fallbackMovieGenres;
+    }
+
+    const res = await moviedb.genreTvList({ language });
+    return res?.genres || fallbackSeriesGenres;
+  } catch (error) {
+    console.error('Error in getGenreList:', error?.message || error);
+    return type === 'movie' ? fallbackMovieGenres : fallbackSeriesGenres;
   }
 }
 

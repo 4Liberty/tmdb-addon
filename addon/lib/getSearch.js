@@ -1,6 +1,5 @@
 require("dotenv").config();
-const { MovieDb } = require("moviedb-promise");
-const moviedb = new MovieDb(process.env.TMDB_API);
+const { getTmdbClient } = require("../utils/getTmdbClient");
 const geminiService = require("../utils/gemini-service");
 const { transliterate } = require("transliteration");
 const { parseMedia } = require("../utils/parseProps");
@@ -14,6 +13,7 @@ const { toCanonicalType } = require("../utils/typeCanonical");
 
 async function getSearch(id, type, language, query, page, config) {
   type = toCanonicalType(type);
+  const moviedb = getTmdbClient(config);
   let searchQuery = query;
   if (isNonLatin(searchQuery)) {
     searchQuery = transliterate(searchQuery);
@@ -28,7 +28,7 @@ async function getSearch(id, type, language, query, page, config) {
       
       const titles = await geminiService.searchWithAI(query, type);
 
-      const genreList = await getGenreList(language, type);
+      const genreList = await getGenreList(language, type, config);
       
       const searchPromises = titles.map(async (title) => {
         try {
@@ -65,7 +65,7 @@ async function getSearch(id, type, language, query, page, config) {
   }
 
   if (searchResults.length === 0) {
-    const genreList = await getGenreList(language, type);
+    const genreList = await getGenreList(language, type, config);
 
     const parameters = {
       query: query,

@@ -1,12 +1,12 @@
 require("dotenv").config();
-const { MovieDb } = require("moviedb-promise");
-const moviedb = new MovieDb(process.env.TMDB_API);
+const { getTmdbClient } = require("../utils/getTmdbClient");
 const { parseMedia } = require("../utils/parseProps");
 const { getGenreList } = require("./getGenreList");
 const { toCanonicalType } = require("../utils/typeCanonical");
 
 async function getTrending(type, language, page, genre, config) {
   const canonicalType = toCanonicalType(type);
+  const moviedb = getTmdbClient(config);
   const media_type = canonicalType === "series" ? "tv" : "movie";
   const parameters = {
     media_type,
@@ -15,7 +15,7 @@ async function getTrending(type, language, page, genre, config) {
     page,
   };
 
-  const genreList = await getGenreList(language, canonicalType);
+  const genreList = await getGenreList(language, canonicalType, config);
 
   return await moviedb
     .trending(parameters)

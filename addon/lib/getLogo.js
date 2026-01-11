@@ -4,8 +4,7 @@ const apiKey = process.env.FANART_API;
 const baseUrl = "http://webservice.fanart.tv/v3/";
 const fanart = new FanartTvApi({ apiKey, baseUrl });
 
-const { MovieDb } = require("moviedb-promise");
-const moviedb = new MovieDb(process.env.TMDB_API);
+const { getTmdbClient } = require("../utils/getTmdbClient");
 
 function pickLogo(logos, language, originalLanguage) {
   const lang = language.split("-")[0];
@@ -22,6 +21,8 @@ async function getLogo(tmdbId, language, originalLanguage) {
   if (!tmdbId) {
     throw new Error(`TMDB ID not available for logo: ${tmdbId}`);
   }
+
+  const moviedb = getTmdbClient();
 
   const [fanartRes, tmdbRes] = await Promise.all([
     fanart
@@ -59,6 +60,8 @@ async function getTvLogo(tvdb_id, tmdbId, language, originalLanguage) {
   if (!tvdb_id && !tmdbId) {
     throw new Error(`TVDB ID and TMDB ID not available for logos.`);
   }
+
+  const moviedb = getTmdbClient();
 
   const [fanartRes, tmdbRes] = await Promise.all([
     tvdb_id

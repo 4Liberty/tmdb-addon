@@ -1,0 +1,15 @@
+[
+  { "iso_639_1": "en-US", "name": "English" },
+  { "iso_639_1": "es-ES", "name": "Spanish" },
+  { "iso_639_1": "fr-FR", "name": "French" },
+  { "iso_639_1": "pt-BR", "name": "Portuguese" },
+  { "iso_639_1": "de-DE", "name": "German" },
+  { "iso_639_1": "it-IT", "name": "Italian" },
+  { "iso_639_1": "ru-RU", "name": "Russian" },
+  { "iso_639_1": "tr-TR", "name": "Turkish" },
+  { "iso_639_1": "ar-SA", "name": "Arabic" },
+  { "iso_639_1": "hi-IN", "name": "Hindi" },
+  { "iso_639_1": "ja-JP", "name": "Japanese" },
+  { "iso_639_1": "ko-KR", "name": "Korean" },
+  { "iso_639_1": "zh-CN", "name": "Mandarin" }
+]

@@ -1,10 +1,9 @@
 // addon/lib/getMeta.js
 
 require("dotenv").config();
-const { MovieDb } = require("moviedb-promise");
 const Utils = require("../utils/parseProps");
 const { toCanonicalType } = require("../utils/typeCanonical");
-const moviedb = new MovieDb(process.env.TMDB_API);
+const { getTmdbClient } = require("../utils/getTmdbClient");
 const { getEpisodes } = require("./getEpisodes");
 const { getLogo, getTvLogo } = require("./getLogo");
 const { getImdbRating } = require("./getImdbRating");
@@ -50,9 +49,10 @@ const buildLinks = (imdbRating, imdbId, title, type, genres, credits, language) 
 };
 
 // Movie specific functions
-const fetchMovieData = async (tmdbId, language) => {
+const fetchMovieData = async (tmdbId, language, config = {}) => {
   try {
     console.log(`[DEBUG] Fetching movie data for TMDB ID: ${tmdbId}, Language: ${language}`); // Existing debug log
+    const moviedb = getTmdbClient(config);
     const res = await moviedb.movieInfo({
       id: tmdbId,
       language,
@@ -124,9 +124,10 @@ const buildMovieResponse = async (res, type, language, tmdbId, rpdbkey, config =
 };
 
 // TV show specific functions
-const fetchTvData = async (tmdbId, language) => {
+const fetchTvData = async (tmdbId, language, config = {}) => {
   try {
     console.log(`[DEBUG] Fetching TV data for TMDB ID: ${tmdbId}, Language: ${language}`); // Existing debug log
+    const moviedb = getTmdbClient(config);
     const res = await moviedb.tvInfo({
       id: tmdbId,
       language,
@@ -233,8 +234,8 @@ async function getMeta(type, language, tmdbId, rpdbkey, config = {}) {
 
   try {
     const res = await (canonicalType === "movie" ?
-      fetchMovieData(tmdbId, language) :
-      fetchTvData(tmdbId, language)
+      fetchMovieData(tmdbId, language, config) :
+      fetchTvData(tmdbId, language, config)
     );
 
     // If fetchMovieData or fetchTvData returned null (e.g., due to 404)

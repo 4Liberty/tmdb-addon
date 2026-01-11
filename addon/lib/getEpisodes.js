@@ -1,6 +1,5 @@
 require("dotenv").config();
-const { MovieDb } = require("moviedb-promise");
-const moviedb = new MovieDb(process.env.TMDB_API);
+const { getTmdbClient } = require("../utils/getTmdbClient");
 const diferentOrder = require("../static/diferentOrder.json");
 const diferentImdbId = require("../static/diferentImdbId.json");
 
@@ -33,6 +32,7 @@ function getThumbnailUrl(stillPath, hideEpisodeThumbnails) {
 
 async function getEpisodes(language, tmdbId, imdb_id, seasons, config = {}) {
   const { hideEpisodeThumbnails = false } = config;
+  const moviedb = getTmdbClient(config);
   const seasonString = genSeasonsString(seasons);
   const difOrder = diferentOrder.find((data) => data.tmdbId === tmdbId);
   const difImdbId = diferentImdbId.find((data) => data.tmdbId === tmdbId);

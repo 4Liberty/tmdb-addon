@@ -23,6 +23,8 @@ export function ConfigProvider({ children }: { children: React.ReactNode }) {
   const [hideEpisodeThumbnails, setHideEpisodeThumbnails] = useState(false);
   const [language, setLanguage] = useState("en-US");
   const [sessionId, setSessionId] = useState("");
+  const [traktAccessToken, setTraktAccessToken] = useState("");
+  const [traktRefreshToken, setTraktRefreshToken] = useState("");
   const [streaming, setStreaming] = useState<string[]>([]);
   const [catalogs, setCatalogs] = useState<CatalogConfig[]>([]);
   const [ageRating, setAgeRating] = useState<string | undefined>(undefined);
@@ -52,6 +54,8 @@ export function ConfigProvider({ children }: { children: React.ReactNode }) {
       if (config.tmdbPrefix) setTmdbPrefix(config.tmdbPrefix === "true");
       if (config.hideEpisodeThumbnails) setHideEpisodeThumbnails(config.hideEpisodeThumbnails === "true");
       if (config.sessionId) setSessionId(config.sessionId);
+      if (config.traktAccessToken) setTraktAccessToken(config.traktAccessToken);
+      if (config.traktRefreshToken) setTraktRefreshToken(config.traktRefreshToken);
       if (config.ageRating) setAgeRating(config.ageRating);
       if (config.includeAdult) setIncludeAdult(config.includeAdult === "true");
       if (config.language) setLanguage(config.language);
@@ -110,6 +114,8 @@ export function ConfigProvider({ children }: { children: React.ReactNode }) {
     hideEpisodeThumbnails,
     language,
     sessionId,
+    traktAccessToken,
+    traktRefreshToken,
     streaming,
     catalogs,
     ageRating,
@@ -125,6 +131,8 @@ export function ConfigProvider({ children }: { children: React.ReactNode }) {
     setHideEpisodeThumbnails,
     setLanguage,
     setSessionId,
+    setTraktAccessToken,
+    setTraktRefreshToken,
     setStreaming,
     setCatalogs,
     setAgeRating,

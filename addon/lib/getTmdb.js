@@ -1,11 +1,11 @@
 // addon/lib/getTmdb.js
 
 require('dotenv').config()
-const { MovieDb } = require('moviedb-promise')
-const moviedb = new MovieDb(process.env.TMDB_API)
+const { getTmdbClient } = require('../utils/getTmdbClient')
 
 async function getTmdb(type, imdbId) {
   try {
+    const moviedb = getTmdbClient();
     const res = await moviedb.find({ id: imdbId, external_source: 'imdb_id' });
 
     if (type === "movie") {

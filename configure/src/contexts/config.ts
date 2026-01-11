@@ -18,6 +18,8 @@ export type ConfigContextType = {
   hideEpisodeThumbnails: boolean;
   language: string;
   sessionId: string;
+  traktAccessToken: string;
+  traktRefreshToken: string;
   streaming: string[];
   catalogs: CatalogConfig[];
   ageRating: string | undefined;
@@ -33,6 +35,8 @@ export type ConfigContextType = {
   setHideEpisodeThumbnails: (hideEpisodeThumbnails: boolean) => void;
   setLanguage: (language: string) => void;
   setSessionId: (sessionId: string) => void;
+  setTraktAccessToken: (token: string) => void;
+  setTraktRefreshToken: (token: string) => void;
   setStreaming: (streaming: string[]) => void;
   setCatalogs: (catalogs: CatalogConfig[] | ((prev: CatalogConfig[]) => CatalogConfig[])) => void;
   setAgeRating: (ageRating: string | undefined) => void;

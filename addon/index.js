@@ -15,11 +15,42 @@ const { getRequestToken, getSessionId } = require("./lib/getSession");
 const { getFavorites, getWatchList } = require("./lib/getPersonalLists");
 const { blurImage } = require('./utils/imageProcessor');
 const { toCanonicalType } = require('./utils/typeCanonical');
+const { getTraktAuthUrl, getTraktAccessToken } = require('./lib/getTraktSession');
+const { getTraktWatchlist, getTraktRecommendations } = require('./lib/getTraktLists');
+const { testProxy, PROXY_CONFIG } = require('./utils/httpClient');
+const {
+  trackUser,
+  getUserCount,
+  getAggregatedUserCount,
+  trackExternalUsers,
+  startAutoReporting,
+  isOfficialInstance,
+} = require('./utils/userCounter');
 
 addon.use(analytics.middleware);
 addon.use(favicon(path.join(__dirname, '../public/favicon.png')));
 addon.use(express.static(path.join(__dirname, '../public')));
 addon.use(express.static(path.join(__dirname, '../dist')));
+
+// Track unique users (best-effort; no-op if caching is disabled)
+addon.use((req, _res, next) => {
+  try {
+    const pathName = req.path || '';
+    if (
+      pathName.endsWith('/manifest.json') ||
+      pathName.includes('/catalog/') ||
+      pathName.includes('/meta/')
+    ) {
+      Promise.resolve(trackUser(req)).catch(() => {});
+    }
+  } catch {
+    // ignore
+  }
+  next();
+});
+
+// Non-official instances periodically report their user count upstream.
+startAutoReporting();
 
 const getCacheHeaders = function (opts) {
   opts = opts || {};
@@ -175,6 +206,26 @@ addon.get("/:catalogChoices?/catalog/:type/:id/:extra?.json", async function (re
           console.log(`[DEBUG] Executing getWatchList with sessionId: ${sessionId ? 'set' : 'not set'}`);
           metas = await getWatchList(...args, genre, sessionId);
           break;
+        case "trakt.watchlist": {
+          const accessToken =
+            config.traktAccessToken ||
+            config.trakt_access_token ||
+            config.traktToken ||
+            config.trakt_token;
+          console.log(`[DEBUG] Executing Trakt watchlist with accessToken: ${accessToken ? 'set' : 'not set'}`);
+          metas = await getTraktWatchlist(canonicalType, language, page, genre, accessToken, config);
+          break;
+        }
+        case "trakt.recommendations": {
+          const accessToken =
+            config.traktAccessToken ||
+            config.trakt_access_token ||
+            config.traktToken ||
+            config.trakt_token;
+          console.log(`[DEBUG] Executing Trakt recommendations with accessToken: ${accessToken ? 'set' : 'not set'}`);
+          metas = await getTraktRecommendations(canonicalType, language, page, genre, accessToken, config);
+          break;
+        }
         default:
           console.log(`[DEBUG] Executing getCatalog with id: "${id}", genre: "${genre}"`);
           metas = await getCatalog(...args, id, genre, config);
@@ -219,6 +270,80 @@ addon.get("/:catalogChoices?/catalog/:type/:id/:extra?.json", async function (re
     }
   }
   respond(res, metas, cacheOpts);
+});
+
+// Trakt OAuth helper endpoints
+addon.get('/trakt_auth_url', async function (req, res) {
+  try {
+    const baseUrl = `${req.protocol}://${req.get('host')}`;
+    const data = await getTraktAuthUrl(baseUrl);
+    respond(res, data);
+  } catch (error) {
+    console.error('[ERROR] Failed to get Trakt auth URL:', error?.message || error);
+    res.status(500).json({ error: 'Failed to get Trakt auth URL' });
+  }
+});
+
+addon.get('/trakt_access_token', async function (req, res) {
+  try {
+    const code = req.query.code;
+    if (!code) return res.status(400).json({ error: 'Missing code' });
+
+    const baseUrl = `${req.protocol}://${req.get('host')}`;
+    const redirectUri = `${baseUrl}/configure/oauth-callback`;
+
+    const tokenData = await getTraktAccessToken(code, redirectUri);
+    respond(res, tokenData);
+  } catch (error) {
+    console.error('[ERROR] Failed to exchange Trakt code:', error?.message || error);
+    res.status(500).json({ error: 'Failed to exchange Trakt code' });
+  }
+});
+
+// Proxy status endpoint
+addon.get('/api/proxy/status', async function (_req, res) {
+  try {
+    const proxyWorking = await testProxy();
+    respond(res, {
+      enabled: !!PROXY_CONFIG.enabled,
+      configured: !!PROXY_CONFIG.enabled,
+      working: proxyWorking,
+      host: PROXY_CONFIG.host,
+      port: PROXY_CONFIG.port,
+      protocol: PROXY_CONFIG.protocol,
+    });
+  } catch (error) {
+    console.error('[ERROR] Failed to check proxy status:', error?.message || error);
+    res.status(500).json({ error: 'Failed to check proxy status' });
+  }
+});
+
+// User count endpoints
+addon.get('/api/stats/users', async function (_req, res) {
+  try {
+    const userCount = await getUserCount();
+    const aggregatedUserCount = await getAggregatedUserCount();
+    respond(res, { userCount, aggregatedUserCount, official: isOfficialInstance() });
+  } catch (error) {
+    console.error('[ERROR] Failed to get user stats:', error?.message || error);
+    res.status(500).json({ error: 'Failed to get user stats' });
+  }
+});
+
+addon.post('/api/stats/report-users', express.json(), async function (req, res) {
+  try {
+    if (!isOfficialInstance()) return res.status(403).json({ error: 'Forbidden' });
+
+    const count = Number(req.body?.count || 0);
+    const instanceId = String(req.body?.instanceId || '');
+    if (!count || !instanceId) return res.status(400).json({ error: 'Invalid payload' });
+
+    await trackExternalUsers(count, instanceId);
+    respond(res, { ok: true });
+  } catch (error) {
+    console.error('[ERROR] Failed to track external users:', error?.message || error);
+    res.status(500).json({ error: 'Failed to track external users' });
+  }
 });
 
 addon.get("/:catalogChoices?/meta/:type/:id.json", async function (req, res) {

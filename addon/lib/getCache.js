@@ -12,13 +12,15 @@ const CATALOG_TTL = process.env.CATALOG_TTL || 1 * 24 * 60 * 60; // 1 day
 const NO_CACHE = process.env.NO_CACHE || false;
 const REDIS_URL = process.env.REDIS_URL;
 
+let redisInstance = null;
+
 const cache = initiateCache();
 
 function initiateCache() {
   if (NO_CACHE) {
     return null;
   } else if (REDIS_URL) {
-    const redisInstance = new Redis(REDIS_URL);
+    redisInstance = new Redis(REDIS_URL);
     return cacheManager.caching({
       store: redisStore,
       redisInstance: redisInstance,
@@ -47,4 +49,4 @@ function cacheWrapMeta(id, method) {
   return cacheWrap(`${META_KEY_PREFIX}:${id}`, method, { ttl: META_TTL });
 }
 
-module.exports = { cacheWrapCatalog, cacheWrapMeta, cache };
+module.exports = { cacheWrapCatalog, cacheWrapMeta, cache, redisInstance };

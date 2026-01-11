@@ -1,6 +1,5 @@
 require("dotenv").config();
-const { MovieDb } = require("moviedb-promise");
-const moviedb = new MovieDb(process.env.TMDB_API);
+const { getTmdbClient } = require("../utils/getTmdbClient");
 const { getGenreList } = require("./getGenreList");
 const { parseMedia } = require("../utils/parseProps");
 const { toCanonicalType } = require("../utils/typeCanonical");
@@ -105,6 +104,7 @@ function configureSortingParameters(parameters, genre) {
 
 async function getFavorites(type, language, page, genre, sessionId) {
     const canonicalType = toCanonicalType(type);
+    const moviedb = getTmdbClient({ noCacheClient: true });
     moviedb.sessionId = sessionId;
     let parameters = { language, page };
     parameters = configureSortingParameters(parameters, genre);
@@ -125,6 +125,7 @@ async function getFavorites(type, language, page, genre, sessionId) {
 
 async function getWatchList(type, language, page, genre, sessionId) {
     const canonicalType = toCanonicalType(type);
+    const moviedb = getTmdbClient({ noCacheClient: true });
     moviedb.sessionId = sessionId;
     let parameters = { language, page };
     parameters = configureSortingParameters(parameters, genre);

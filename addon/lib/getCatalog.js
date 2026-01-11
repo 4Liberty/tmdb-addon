@@ -1,6 +1,5 @@
 require("dotenv").config();
-const { MovieDb } = require("moviedb-promise");
-const moviedb = new MovieDb(process.env.TMDB_API);
+const { getTmdbClient } = require("../utils/getTmdbClient");
 const { getGenreList } = require("./getGenreList");
 const { getLanguages } = require("./getLanguages");
 const { parseMedia } = require("../utils/parseProps");
@@ -11,6 +10,7 @@ const { toCanonicalType } = require("../utils/typeCanonical");
 
 async function getCatalog(type, language, page, id, genre, config) {
   type = toCanonicalType(type);
+  const moviedb = getTmdbClient(config);
   const mdblistKey = config.mdblistkey;
 
   if (id.startsWith("mdblist.")) {
@@ -48,7 +48,7 @@ async function getCatalog(type, language, page, id, genre, config) {
     return { metas };
   }
 
-  const genreList = await getGenreList(language, type);
+  const genreList = await getGenreList(language, type, config);
   const parameters = await buildParameters(
     type,
     language,
@@ -87,7 +87,7 @@ async function buildParameters(
   genreList,
   config
 ) {
-  const languages = await getLanguages();
+  const languages = await getLanguages(config);
   const parameters = { language, page, "vote_count.gte": 10 };
 
   if (config.ageRating) {
