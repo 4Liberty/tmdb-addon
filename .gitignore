@@ -105,3 +105,6 @@ dist
 
 # VS-Code folder
 .vscode
+
+# JetBrains IDEs
+.idea/
