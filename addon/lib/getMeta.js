@@ -1,9 +1,6 @@
-// addon/lib/getMeta.js
-
 require("dotenv").config();
-const Utils = require("../utils/parseProps");
-const { toCanonicalType } = require("../utils/typeCanonical");
 const { getTmdbClient } = require("../utils/getTmdbClient");
+const Utils = require("../utils/parseProps");
 const { getEpisodes } = require("./getEpisodes");
 const { getLogo, getTvLogo } = require("./getLogo");
 const { getImdbRating } = require("./getImdbRating");
@@ -39,94 +36,156 @@ const extractAgeRating = (res, type, language) => {
     return null;
 }
 
-// Helper functions
-const getCacheKey = (type, language, tmdbId, rpdbkey) =>
-  `${toCanonicalType(type)}-${language}-${tmdbId}-${rpdbkey}`;
+const normalizeConfig = (config) => {
+    const {
+        rpdbkey,
+        rpdbMediaTypes = null,
+        castCount,
+        hideEpisodeThumbnails,
+    } = config;
+
+    const enableAgeRating = config.enableAgeRating === true || config.enableAgeRating === "true";
+    const showAgeRatingInGenres = config.showAgeRatingInGenres !== false && config.showAgeRatingInGenres !== "false";
+    const showAgeRatingWithImdbRating = config.showAgeRatingWithImdbRating === true || config.showAgeRatingWithImdbRating === "true";
+    const returnImdbId = config.returnImdbId === true || config.returnImdbId === "true";
+    const hideInCinemaTag = config.hideInCinemaTag === true || config.hideInCinemaTag === "true";
+
+    return {
+        rpdbkey,
+        rpdbMediaTypes,
+        castCount,
+        hideEpisodeThumbnails,
+        enableAgeRating,
+        showAgeRatingInGenres,
+        showAgeRatingWithImdbRating,
+        returnImdbId,
+        hideInCinemaTag,
+    };
+};
+
+const getCacheKey = (
+    type,
+    language,
+    tmdbId,
+    config
+) => {
+    const { enableAgeRating, showAgeRatingInGenres, showAgeRatingWithImdbRating, rpdbkey } = normalizeConfig(config);
+    return `${type}-${language}-${tmdbId}-${rpdbkey}-ageRating:${enableAgeRating}-${showAgeRatingInGenres}-${showAgeRatingWithImdbRating}`;
+}
+
+async function getCachedImdbRating(imdbId, type) {
+    if (!imdbId) return null;
+    if (imdbCache.has(imdbId)) return imdbCache.get(imdbId);
+    try {
+        const rating = await getImdbRating(imdbId, type);
+        imdbCache.set(imdbId, rating);
+        return rating;
+    } catch (err) {
+        console.error(`Error fetching IMDb rating for ${imdbId}:`, err.message);
+        return null;
+    }
+}
 
 const processLogo = (logo) => {
     if (!logo || typeof logo !== 'string' || blacklistLogoUrls.includes(logo)) return null;
     return logo.replace("http://", "https://");
 };
 
-const buildLinks = (imdbRating, imdbId, title, type, genres, credits, language) => {
-  const canonicalType = toCanonicalType(type);
-  return [
-    Utils.parseImdbLink(imdbRating, imdbId),
-    Utils.parseShareLink(title, imdbId, canonicalType),
-    ...Utils.parseGenreLink(genres, canonicalType, language),
-    ...Utils.parseCreditsLink(credits)
-  ];
+
+const buildLinks = (
+    imdbRating,
+    imdbId,
+    title,
+    type,
+    genres,
+    credits,
+    language,
+    castCount,
+    ageRating = null,
+    showAgeRatingInGenres = true,
+    showAgeRatingWithImdbRating = false,
+    collObj
+) => [
+        Utils.parseImdbLink(imdbRating, imdbId, ageRating, showAgeRatingWithImdbRating),
+        Utils.parseShareLink(title, imdbId, type),
+        ...Utils.parseGenreLink(genres, type, language, imdbId, ageRating, showAgeRatingInGenres),
+        ...Utils.parseCreditsLink(credits, castCount),
+        ...Utils.parseCollection(collObj) //empty if no collection
+    ];
+
+// Helper function to add age rating to genres
+const addAgeRatingToGenres = (ageRating, genres, showAgeRatingInGenres = true) => {
+    if (!ageRating || !showAgeRatingInGenres) return genres;
+    return [ageRating, ...genres];
+};
+
+const fetchCollectionData = async (moviedb, collTMDBId, language, tmdbId) => {
+    return await moviedb.collectionInfo({
+        id: collTMDBId,
+        language
+    }).then((res) => {
+        if (!res.parts) {
+            return null;
+        }
+        res.parts = res.parts.filter((part) => part.id !== tmdbId); //remove self from collection
+        return res;
+    });
 };
 
 // Movie specific functions
-const fetchMovieData = async (tmdbId, language, config = {}) => {
-  try {
-    console.log(`[DEBUG] Fetching movie data for TMDB ID: ${tmdbId}, Language: ${language}`); // Existing debug log
-    const moviedb = getTmdbClient(config);
-    const res = await moviedb.movieInfo({
-      id: tmdbId,
-      language,
-      append_to_response: "videos,credits,external_ids"
-    });
-    return res;
-  } catch (error) {
-    // Check for 404 or other errors related to resource not found
-    if (error.response && error.response.status === 404) {
-      console.warn(`[WARNING] TMDB Movie ID ${tmdbId} not found (404). Returning null.`);
-      return null; // Return null if movie not found
+const fetchMovieData = async (moviedb, tmdbId, language) => {
+    try {
+        return await moviedb.movieInfo({
+            id: tmdbId,
+            language,
+            append_to_response: "videos,credits,external_ids,release_dates"
+        });
+    } catch (e) {
+        // Swallow 404s (not found) and return null; rethrow other errors
+        if (e?.response?.status === 404) return null;
+        throw e;
     }
-    console.error(`[ERROR] Error fetching movie data for TMDB ID ${tmdbId}:`, error.message);
-    throw error; // Re-throw other unexpected errors
-  }
 };
 
-const buildMovieResponse = async (res, type, language, tmdbId, rpdbkey, config = {}) => {
-  const canonicalType = toCanonicalType(type);
-  if (canonicalType !== "movie" && canonicalType !== "series") {
-    console.error(`[ERROR] Unexpected canonical type in buildMovieResponse: ${canonicalType}`);
-  }
-  const [poster, logo, imdbRatingRaw] = await Promise.all([
-    Utils.parsePoster(canonicalType, tmdbId, res.poster_path, language, rpdbkey),
-    getLogo(tmdbId, language, res.original_language, config).catch(e => {
-      console.warn(`Erro ao buscar logo para filme ${tmdbId}:`, e.message);
-      return null;
-    }),
-    getCachedImdbRating(res.external_ids?.imdb_id, canonicalType),
-  ]);
+const buildMovieResponse = async (res, type, language, tmdbId, config = {}) => {
+    const {
+        rpdbkey,
+        rpdbMediaTypes,
+        castCount,
+        enableAgeRating,
+        showAgeRatingInGenres,
+        showAgeRatingWithImdbRating,
+        returnImdbId,
+        hideInCinemaTag
+    } = normalizeConfig(config);
 
-  const imdbRating = imdbRatingRaw || res.vote_average?.toFixed(1) || "N/A";
-  const castCount = 10; // This value comes from config, consider using config.castCount directly
-  const hideInCinemaTag = config.hideInCinemaTag === true || config.hideInCinemaTag === "true";
+    const logoFetcher = rpdbMediaTypes?.logo
+        ? Utils.parseMediaImage(type, tmdbId, null, language, rpdbkey, "logo", rpdbMediaTypes)
+        : getLogo(tmdbId, language, res.original_language, config);
 
-  const response = {
-    imdb_id: res.external_ids?.imdb_id,
-    country: Utils.parseCoutry(res.production_countries),
-    description: res.overview,
-    director: Utils.parseDirector(res.credits),
-    genre: Utils.parseGenres(res.genres),
-    imdbRating,
-    name: res.title,
-    released: new Date(res.release_date),
-    slug: Utils.parseSlug(canonicalType, res.title, res.external_ids?.imdb_id),
-    type: canonicalType,
-    writer: Utils.parseWriter(res.credits),
-    year: res.release_date ? res.release_date.substr(0, 4) : "",
-    trailers: Utils.parseTrailers(res.videos),
-    background: `https://image.tmdb.org/t/p/original${res.backdrop_path}`,
-    poster,
-    runtime: Utils.parseRunTime(res.runtime),
-    id: `tmdb:${tmdbId}`,
-    genres: Utils.parseGenres(res.genres),
-    releaseInfo: res.release_date ? res.release_date.substr(0, 4) : "",
-    trailerStreams: Utils.parseTrailerStream(res.videos),
-    links: buildLinks(imdbRating, res.external_ids?.imdb_id, res.title, canonicalType, res.genres, res.credits, language),
-    behaviorHints: {
-      defaultVideoId: res.external_ids?.imdb_id ? res.external_ids?.imdb_id : `tmdb:${res.id}`,
-      hasScheduledVideos: false
-    },
-    logo: processLogo(logo),
-    app_extras: {
-      cast: Utils.parseCast(res.credits, config.castCount !== undefined ? config.castCount : castCount) // Use config.castCount
+    const logo = await logoFetcher.catch(e => {
+        console.warn(`Error fetching logo for movie ${tmdbId}:`, e.message);
+        return null;
+    });
+
+    const moviedb = getTmdbClient(config);
+    const [poster, imdbRatingRaw, collectionRaw] = await Promise.all([
+        Utils.parseMediaImage(type, tmdbId, res.poster_path, language, rpdbkey, "poster", rpdbMediaTypes),
+        getCachedImdbRating(res.external_ids?.imdb_id, type),
+        (res.belongs_to_collection && res.belongs_to_collection.id)
+            ? fetchCollectionData(moviedb, res.belongs_to_collection.id, language, tmdbId).catch((e) => {
+                console.warn(`Error fetching collection data for movie ${tmdbId} and collection ${res.belongs_to_collection.id}:`, e.message);
+                return null;
+            })
+            : null
+    ]);
+
+    const imdbRating = imdbRatingRaw || res.vote_average?.toFixed(1) || "N/A";
+    const parsedGenres = Utils.parseGenres(res.genres);
+
+    let resolvedAgeRating = null;
+    if (enableAgeRating) {
+        resolvedAgeRating = extractAgeRating(res, type, language);
     }
 
     const response = {
@@ -179,83 +238,65 @@ const buildMovieResponse = async (res, type, language, tmdbId, rpdbkey, config =
 };
 
 // TV show specific functions
-const fetchTvData = async (tmdbId, language, config = {}) => {
-  try {
-    console.log(`[DEBUG] Fetching TV data for TMDB ID: ${tmdbId}, Language: ${language}`); // Existing debug log
-    const moviedb = getTmdbClient(config);
-    const res = await moviedb.tvInfo({
-      id: tmdbId,
-      language,
-      append_to_response: "videos,credits,external_ids"
-    });
-    return res;
-  } catch (error) {
-    // Check for 404 or other errors related to resource not found
-    if (error.response && error.response.status === 404) {
-      console.warn(`[WARNING] TMDB TV ID ${tmdbId} not found (404). Returning null.`);
-      return null; // Return null if TV show not found
+const fetchTvData = async (moviedb, tmdbId, language) => {
+    try {
+        return await moviedb.tvInfo({
+            id: tmdbId,
+            language,
+            append_to_response: "videos,credits,external_ids,content_ratings"
+        });
+    } catch (e) {
+        if (e?.response?.status === 404) return null;
+        throw e;
     }
-    console.error(`[ERROR] Error fetching TV data for TMDB ID ${tmdbId}:`, error.message);
-    throw error; // Re-throw other unexpected errors
-  }
 };
 
-const buildTvResponse = async (res, type, language, tmdbId, rpdbkey, config = {}) => {
-  const canonicalType = toCanonicalType(type);
-  if (canonicalType !== "movie" && canonicalType !== "series") {
-    console.error(`[ERROR] Unexpected canonical type in buildTvResponse: ${canonicalType}`);
-  }
-  const runtime = res.episode_run_time?.[0] ?? res.last_episode_to_air?.runtime ?? res.next_episode_to_air?.runtime ?? null;
+const buildTvResponse = async (res, type, language, tmdbId, config = {}) => {
+    const {
+        rpdbkey,
+        rpdbMediaTypes,
+        castCount,
+        enableAgeRating,
+        showAgeRatingInGenres,
+        showAgeRatingWithImdbRating,
+        returnImdbId,
+        hideInCinemaTag,
+        hideEpisodeThumbnails,
+    } = normalizeConfig(config);
 
-  const [poster, logo, imdbRatingRaw, episodes] = await Promise.all([
-    Utils.parsePoster(canonicalType, tmdbId, res.poster_path, language, rpdbkey),
-    getTvLogo(res.external_ids?.tvdb_id, res.id, language, res.original_language, config).catch(e => {
-      console.warn(`Erro ao buscar logo para série ${tmdbId}:`, e.message);
-      return null;
-    }),
-    getCachedImdbRating(res.external_ids?.imdb_id, canonicalType),
-    getEpisodes(language, tmdbId, res.external_ids?.imdb_id, res.seasons, {
-      hideEpisodeThumbnails: config.hideEpisodeThumbnails
-    }).catch(e => {
-      console.warn(`Erro ao buscar episódios da série ${tmdbId}:`, e.message);
-      return [];
-    })
-  ]);
+    const runtime = res.episode_run_time?.[0] ?? res.last_episode_to_air?.runtime ?? res.next_episode_to_air?.runtime ?? null;
 
-  const imdbRating = imdbRatingRaw || res.vote_average?.toFixed(1) || "N/A";
-  const castCount = 10; // This value comes from config, consider using config.castCount directly
-  const hideInCinemaTag = config.hideInCinemaTag === true || config.hideInCinemaTag === "true";
+    const logoFetcher = rpdbMediaTypes?.logo
+        ? Utils.parseMediaImage(type, tmdbId, null, language, rpdbkey, "logo", rpdbMediaTypes)
+        : getTvLogo(res.external_ids?.tvdb_id, res.id, language, res.original_language, config);
 
-  const response = {
-    country: Utils.parseCoutry(res.production_countries),
-    description: res.overview,
-    genre: Utils.parseGenres(res.genres),
-    imdbRating,
-    imdb_id: res.external_ids.imdb_id,
-    name: res.name,
-    poster,
-    released: new Date(res.first_air_date),
-    runtime: Utils.parseRunTime(runtime),
-    status: res.status,
-    type: canonicalType,
-    writer: Utils.parseCreatedBy(res.created_by),
-    year: Utils.parseYear(res.status, res.first_air_date, res.last_air_date),
-    background: `https://image.tmdb.org/t/p/original${res.backdrop_path}`,
-    slug: Utils.parseSlug(canonicalType, res.name, res.external_ids.imdb_id),
-    id: `tmdb:${tmdbId}`,
-    genres: Utils.parseGenres(res.genres),
-    releaseInfo: Utils.parseYear(res.status, res.first_air_date, res.last_air_date),
-    videos: episodes || [],
-    links: buildLinks(imdbRating, res.external_ids.imdb_id, res.name, canonicalType, res.genres, res.credits, language),
-    trailers: Utils.parseTrailers(res.videos),
-    trailerStreams: Utils.parseTrailerStream(res.videos),
-    behaviorHints: {
-      defaultVideoId: null,
-      hasScheduledVideos: true
-    },
-    logo: processLogo(logo),
-    app_extras: {
-      cast: Utils.parseCast(res.credits, config.castCount !== undefined ? config.castCount : castCount) // Use config.castCount
+    const logo = await logoFetcher.catch(e => {
+        console.warn(`Error fetching logo for series ${tmdbId}:`, e.message);
+        return null;
+    });
+
+    const moviedb = getTmdbClient(config);
+    const [poster, imdbRatingRaw, episodes, collectionRaw] = await Promise.all([
+        Utils.parseMediaImage(type, tmdbId, res.poster_path, language, rpdbkey, "poster", rpdbMediaTypes),
+        getCachedImdbRating(res.external_ids?.imdb_id, type),
+        getEpisodes(language, tmdbId, res.external_ids?.imdb_id, res.seasons, config).catch(e => {
+            console.warn(`Error fetching episodes for series ${tmdbId}:`, e.message);
+            return [];
+        }),
+        (res.belongs_to_collection && res.belongs_to_collection.id)
+            ? fetchCollectionData(moviedb, res.belongs_to_collection.id, language, tmdbId).catch((e) => {
+                console.warn(`Error fetching collection data for movie ${tmdbId} and collection ${res.belongs_to_collection.id}:`, e.message);
+                return null;
+            })
+            : null
+    ]);
+
+    const imdbRating = imdbRatingRaw || res.vote_average?.toFixed(1) || "N/A";
+    const parsedGenres = Utils.parseGenres(res.genres);
+
+    let resolvedAgeRating = null;
+    if (enableAgeRating) {
+        resolvedAgeRating = extractAgeRating(res, type, language);
     }
 
     const response = {
@@ -320,41 +361,57 @@ const buildTvResponse = async (res, type, language, tmdbId, rpdbkey, config = {}
 };
 
 // Main function
-async function getMeta(type, language, tmdbId, rpdbkey, config = {}) {
-  const canonicalType = toCanonicalType(type);
-  if (canonicalType !== "movie" && canonicalType !== "series") {
-    console.error(`[ERROR] Unexpected canonical type in getMeta: ${canonicalType}`);
-  }
-  const cacheKey = getCacheKey(canonicalType, language, tmdbId, rpdbkey);
-  const cachedData = cache.get(cacheKey);
+async function getMeta(type, language, tmdbId, config = {}) {
+    const cacheKey = getCacheKey(type, language, tmdbId, config);
+    const cachedData = cache.get(cacheKey);
 
-  if (cachedData && (Date.now() - cachedData.timestamp) < CACHE_TTL) {
-    return Promise.resolve({ meta: cachedData.data });
-  }
-
-  try {
-    const res = await (canonicalType === "movie" ?
-      fetchMovieData(tmdbId, language, config) :
-      fetchTvData(tmdbId, language, config)
-    );
-
-    // If fetchMovieData or fetchTvData returned null (e.g., due to 404)
-    if (res === null) {
-      return { meta: null }; // Return null meta to indicate not found
+    if (cachedData && (Date.now() - cachedData.timestamp) < CACHE_TTL) {
+        return Promise.resolve({ meta: cachedData.data });
     }
 
-    const meta = await (canonicalType === "movie" ?
-      buildMovieResponse(res, canonicalType, language, tmdbId, rpdbkey, config) :
-      buildTvResponse(res, canonicalType, language, tmdbId, rpdbkey, config)
-    );
+    if (tmdbId === "no-content" || tmdbId === "0") {
+        const host = process.env.HOST_NAME ? process.env.HOST_NAME.replace(/\/$/, '') : '';
+        const posterUrl = host + "/no-content.png?v=" + Date.now();
+        return Promise.resolve({
+            meta: {
+                id: "tmdb:no-content",
+                type: type,
+                name: "No Content Available",
+                poster: posterUrl,
+                description: "No content found for the selected filter.",
+                genres: ["No Results"],
+                logo: posterUrl,
+                background: posterUrl
+            }
+        });
+    }
 
-    cache.set(cacheKey, { data: meta, timestamp: Date.now() });
-    return Promise.resolve({ meta });
-  } catch (error) {
-    console.error(`Error in getMeta for TMDB ID ${tmdbId}: ${error.message}`);
-    // Do not re-throw here, let the calling function handle the null meta
-    return { meta: null };
-  }
+    try {
+        const moviedb = getTmdbClient(config);
+        // First, fetch raw TMDB data with 404 handling
+        const tmdbRes = (type === "movie")
+            ? await fetchMovieData(moviedb, tmdbId, language)
+            : await fetchTvData(moviedb, tmdbId, language);
+
+        if (!tmdbRes) {
+            console.warn(`TMDB ${type} not found: ${tmdbId} (${language})`);
+            // Return empty meta on 404 instead of throwing
+            return { meta: {} };
+        }
+
+        // Build the meta object
+        const meta = (type === "movie")
+            ? await buildMovieResponse(tmdbRes, type, language, tmdbId, config)
+            : await buildTvResponse(tmdbRes, type, language, tmdbId, config);
+
+        // Cache and return
+        cache.set(cacheKey, { data: meta, timestamp: Date.now() });
+        return { meta };
+    } catch (error) {
+        // Log and return empty meta instead of throwing to avoid crashing the process
+        console.error(`Error in getMeta: ${error?.message || error}`);
+        return { meta: {} };
+    }
 }
 
 module.exports = { getMeta };

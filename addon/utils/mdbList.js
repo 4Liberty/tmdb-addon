@@ -4,6 +4,27 @@ const axios = require("axios");
 const { getMeta } = require("../lib/getMeta");
 const { getGenreList } = require("../lib/getGenreList");
 
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+async function mapInBatches(items, mapper, { batchSize = 5, delayMs = 0 } = {}) {
+  const results = [];
+
+  for (let index = 0; index < items.length; index += batchSize) {
+    const batch = items.slice(index, index + batchSize);
+    const batchResults = await Promise.all(batch.map(mapper));
+    results.push(...batchResults);
+
+    const hasMore = index + batchSize < items.length;
+    if (hasMore && delayMs > 0) {
+      await sleep(delayMs);
+    }
+  }
+
+  return results;
+}
+
 async function fetchMDBListItems(listId, apiKey, language, page) {
     const offset = (page * 100) - 100;
   try {
@@ -40,6 +61,8 @@ async function getGenresFromMDBList(listId, apiKey) {
 }
 
 async function parseMDBListItems(items, type, genreFilter, language, config = {}) {
+  const { rpdbkey } = config;
+
   const availableGenres = [
     ...new Set(
       items.flatMap(item =>
@@ -77,18 +100,22 @@ async function parseMDBListItems(items, type, genreFilter, language, config = {}
       type: type
     }));
 
-  const metaPromises = filteredItemsByType.map(item =>
-    getMeta(item.type, language, item.id, rpdbkey)
-      .then(result => result.meta)
-      .catch(err => {
-        console.error(`Erro ao buscar metadados para ${item.id} from MDBList:`, err.message);
-        return null;
-      }
-    },
-    { batchSize: 5, delayMs: 200 }
-  );
-
-  const metas = (await Promise.all(metaPromises)).filter(Boolean); // Filter out null results
+  const metas = (
+    await mapInBatches(
+      filteredItemsByType,
+      (item) =>
+        getMeta(item.type, language, item.id, rpdbkey)
+          .then((result) => result.meta)
+          .catch((err) => {
+            console.error(
+              `Erro ao buscar metadados para ${item.id} from MDBList:`,
+              err.message
+            );
+            return null;
+          }),
+      { batchSize: 5, delayMs: 200 }
+    )
+  ).filter(Boolean);
 
   return { metas, availableGenres };
 }

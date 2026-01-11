@@ -7,15 +7,28 @@ const { parseMedia } = require("../utils/parseProps");
 const { getGenreList } = require("./getGenreList");
 const { isMovieReleasedInRegion, isMovieReleasedDigitally } = require("./releaseFilter");
 const { rateLimitedMap, rateLimitedMapFiltered } = require("../utils/rateLimiter");
+const { toCanonicalType } = require("../utils/typeCanonical");
 
 function isNonLatin(text) {
   return /[^\u0000-\u007F]/.test(text);
 }
 
-const { toCanonicalType } = require("../utils/typeCanonical");
+/**
+ * Check if a TV show has aired in a region (based on first_air_date)
+ * TV shows don't have region-specific release dates in the same way
+ * @param {string} firstAirDate - First air date in YYYY-MM-DD format
+ * @returns {boolean} - true if aired, false otherwise
+ */
+function isTvShowAired(firstAirDate) {
+  if (!firstAirDate) return true;
+  const today = new Date().toISOString().split('T')[0];
+  return firstAirDate <= today;
+}
 
 async function getSearch(id, type, language, query, page, config) {
   type = toCanonicalType(type);
+  const normalizedPage = Number(page) > 0 ? Number(page) : 1;
+
   const moviedb = getTmdbClient(config);
   let searchQuery = query;
   if (isNonLatin(searchQuery)) {
@@ -33,25 +46,75 @@ async function getSearch(id, type, language, query, page, config) {
         const titles = await groqService.searchWithAI(query, type);
         const genreList = await getGenreList(language, type, config);
 
-      const genreList = await getGenreList(language, type, config);
-      
-      const searchPromises = titles.map(async (title) => {
-        try {
-          const parameters = {
-            query: title,
-            language,
-            include_adult: config.includeAdult
-          };
+        const results = await rateLimitedMap(
+          titles,
+          async (title) => {
+            try {
+              const parameters = {
+                query: title,
+                language,
+                include_adult: config.includeAdult
+              };
 
-          if (type === "movie") {
-            const res = await moviedb.searchMovie(parameters);
-            if (res.results && res.results.length > 0) {
-              return parseMedia(res.results[0], "movie", genreList);
+              if (type === "movie") {
+                const res = await moviedb.searchMovie(parameters);
+                if (res.results && res.results.length > 0) {
+                  return parseMedia(res.results[0], 'movie', genreList);
+                }
+              } else {
+                const res = await moviedb.searchTv(parameters);
+                if (res.results && res.results.length > 0) {
+                  return parseMedia(res.results[0], 'tv', genreList);
+                }
+              }
+              return null;
+            } catch (error) {
+              console.error(`Error fetching details for title "${title}":`, error);
+              return null;
             }
-          } else {
-            const res = await moviedb.searchTv(parameters);
-            if (res.results && res.results.length > 0) {
-              return parseMedia(res.results[0], "tv", genreList);
+          },
+          { batchSize: 5, delayMs: 200 }
+        );
+        searchResults = results.filter(result => result !== null);
+      } catch (error) {
+        console.error('Error processing AI search with Groq:', error);
+      }
+    }
+    // Fallback to Gemini if no Groq key but Gemini key exists
+    else if (config.geminikey) {
+      try {
+        await geminiService.initialize(config.geminikey);
+
+        const titles = await geminiService.searchWithAI(query, type);
+
+        const genreList = await getGenreList(language, type, config);
+
+        // Use rate-limited fetching for AI search results
+        const results = await rateLimitedMap(
+          titles,
+          async (title) => {
+            try {
+              const parameters = {
+                query: title,
+                language,
+                include_adult: config.includeAdult
+              };
+
+              if (type === "movie") {
+                const res = await moviedb.searchMovie(parameters);
+                if (res.results && res.results.length > 0) {
+                  return parseMedia(res.results[0], 'movie', genreList);
+                }
+              } else {
+                const res = await moviedb.searchTv(parameters);
+                if (res.results && res.results.length > 0) {
+                  return parseMedia(res.results[0], 'tv', genreList);
+                }
+              }
+              return null;
+            } catch (error) {
+              console.error(`Error fetching details for title "${title}":`, error);
+              return null;
             }
           },
           { batchSize: 5, delayMs: 200 }
@@ -70,7 +133,7 @@ async function getSearch(id, type, language, query, page, config) {
     const parameters = {
       query: query,
       language,
-      page: page,
+      page: normalizedPage,
       include_adult: config.includeAdult
     };
 
@@ -100,15 +163,24 @@ async function getSearch(id, type, language, query, page, config) {
       await moviedb
         .searchMovie(parameters)
         .then((res) => {
-          res.results.map((el) => {searchResults.push(parseMedia(el, "movie", genreList));});
+          let results = res.results;
+          // Filter out unreleased content when strict mode is on
+          if ((config.strictRegionFilter === "true" || config.strictRegionFilter === true)) {
+            const today = new Date().toISOString().split('T')[0];
+            results = results.filter(el => {
+              if (!el.release_date) return true; // No date, include it
+              return el.release_date <= today;
+            });
+          }
+          results.map((el) => { searchResults.push(parseMedia(el, 'movie', genreList)); });
         })
         .catch(console.error);
 
       if (searchResults.length === 0) {
         await moviedb
-          .searchMovie({ query: searchQuery, language, include_adult: config.includeAdult })
+          .searchMovie({ query: searchQuery, language, page: normalizedPage, include_adult: config.includeAdult })
           .then((res) => {
-            res.results.map((el) => {searchResults.push(parseMedia(el, "movie", genreList));});
+            res.results.map((el) => { searchResults.push(parseMedia(el, 'movie', genreList)); });
           })
           .catch(console.error);
       }
@@ -120,13 +192,13 @@ async function getSearch(id, type, language, query, page, config) {
             .then((credits) => {
               credits.cast.map((el) => {
                 if (!searchResults.find((meta) => meta.id === `tmdb:${el.id}`)) {
-                  searchResults.push(parseMedia(el, "movie", genreList));
+                  searchResults.push(parseMedia(el, 'movie', genreList));
                 }
               });
               credits.crew.map((el) => {
                 if (el.job === "Director" || el.job === "Writer") {
                   if (!searchResults.find((meta) => meta.id === `tmdb:${el.id}`)) {
-                    searchResults.push(parseMedia(el, "movie", genreList));
+                    searchResults.push(parseMedia(el, 'movie', genreList));
                   }
                 }
               });
@@ -137,15 +209,24 @@ async function getSearch(id, type, language, query, page, config) {
       await moviedb
         .searchTv(parameters)
         .then((res) => {
-          res.results.map((el) => {searchResults.push(parseMedia(el, "tv", genreList))});
+          let results = res.results;
+          // Filter out unreleased content when strict mode is on
+          if ((config.strictRegionFilter === "true" || config.strictRegionFilter === true)) {
+            const today = new Date().toISOString().split('T')[0];
+            results = results.filter(el => {
+              if (!el.first_air_date) return true; // No date, include it
+              return el.first_air_date <= today;
+            });
+          }
+          results.map((el) => { searchResults.push(parseMedia(el, 'tv', genreList)) });
         })
         .catch(console.error);
 
       if (searchResults.length === 0) {
         await moviedb
-          .searchTv({ query: searchQuery, language, include_adult: config.includeAdult })
+          .searchTv({ query: searchQuery, language, page: normalizedPage, include_adult: config.includeAdult })
           .then((res) => {
-            res.results.map((el) => {searchResults.push(parseMedia(el, "tv", genreList))});
+            res.results.map((el) => { searchResults.push(parseMedia(el, 'tv', genreList)) });
           })
           .catch(console.error);
       }
@@ -158,14 +239,14 @@ async function getSearch(id, type, language, query, page, config) {
               credits.cast.map((el) => {
                 if (el.episode_count >= 5) {
                   if (!searchResults.find((meta) => meta.id === `tmdb:${el.id}`)) {
-                    searchResults.push(parseMedia(el, "tv", genreList));
+                    searchResults.push(parseMedia(el, 'tv', genreList));
                   }
                 }
               });
               credits.crew.map((el) => {
                 if (el.job === "Director" || el.job === "Writer") {
                   if (!searchResults.find((meta) => meta.id === `tmdb:${el.id}`)) {
-                    searchResults.push(parseMedia(el, "tv", genreList));
+                    searchResults.push(parseMedia(el, 'tv', genreList));
                   }
                 }
               });
