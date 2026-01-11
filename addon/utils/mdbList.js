@@ -104,7 +104,7 @@ async function parseMDBListItems(items, type, genreFilter, language, config = {}
     await mapInBatches(
       filteredItemsByType,
       (item) =>
-        getMeta(item.type, language, item.id, rpdbkey)
+        getMeta(item.type, language, item.id, { ...(config || {}), rpdbkey })
           .then((result) => result.meta)
           .catch((err) => {
             console.error(

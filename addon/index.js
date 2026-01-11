@@ -497,8 +497,10 @@ addon.get("/:catalogChoices?/meta/:type/:id.json", async function (req, res) {
     if (id.includes("tmdb:")) {
       const tmdbId = id.split(":")[1];
       const resp = await cacheWrapMeta(`${language}:${canonicalType}:${tmdbId}`, async () => {
-        return await getMeta(canonicalType, language, tmdbId, rpdbkey, {
-          hideEpisodeThumbnails: config.hideEpisodeThumbnails === "true"
+        return await getMeta(canonicalType, language, tmdbId, {
+          ...config,
+          rpdbkey,
+          hideEpisodeThumbnails: config.hideEpisodeThumbnails === "true",
         });
       });
       const cacheOpts = {
@@ -517,8 +519,10 @@ addon.get("/:catalogChoices?/meta/:type/:id.json", async function (req, res) {
       const tmdbId = await getTmdb(canonicalType, imdbId);
       if (tmdbId) {
         const resp = await cacheWrapMeta(`${language}:${canonicalType}:${tmdbId}`, async () => {
-          return await getMeta(canonicalType, language, tmdbId, rpdbkey, {
-            hideEpisodeThumbnails: config.hideEpisodeThumbnails === "true"
+          return await getMeta(canonicalType, language, tmdbId, {
+            ...config,
+            rpdbkey,
+            hideEpisodeThumbnails: config.hideEpisodeThumbnails === "true",
           });
         });
         const cacheOpts = {

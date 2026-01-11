@@ -27,7 +27,7 @@ async function getTraktWatchlist(type, language, page, genre, accessToken, confi
     try {
       const tmdbId = type === 'movie' ? item?.movie?.ids?.tmdb : item?.show?.ids?.tmdb;
       if (!tmdbId) continue;
-      const meta = await getMeta(type, language, tmdbId, null, config);
+      const meta = await getMeta(type, language, tmdbId, config);
       if (meta?.meta) metas.push(meta.meta);
     } catch (err) {
       console.error('Error processing Trakt item:', err?.message || err);
@@ -61,7 +61,7 @@ async function getTraktRecommendations(type, language, page, genre, accessToken,
     try {
       const tmdbId = item?.ids?.tmdb;
       if (!tmdbId) continue;
-      const meta = await getMeta(type, language, tmdbId, null, config);
+      const meta = await getMeta(type, language, tmdbId, config);
       if (meta?.meta) metas.push(meta.meta);
     } catch (err) {
       console.error('Error processing Trakt recommendation:', err?.message || err);

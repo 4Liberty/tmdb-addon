@@ -289,6 +289,22 @@ function parseMedia(el, type, genreList = []) {
       )
     : [];
 
+  const year =
+    type === "movie"
+      ? el.release_date
+        ? el.release_date.substr(0, 4)
+        : ""
+      : el.first_air_date
+        ? el.first_air_date.substr(0, 4)
+        : "";
+
+  const runtimeMinutes =
+    typeof el.runtime === 'number'
+      ? el.runtime
+      : Array.isArray(el.episode_run_time) && typeof el.episode_run_time[0] === 'number'
+        ? el.episode_run_time[0]
+        : null;
+
   return {
     id: `tmdb:${el.id}`,
     name: type === "movie" ? el.title : el.name,
@@ -297,14 +313,9 @@ function parseMedia(el, type, genreList = []) {
     background: `https://image.tmdb.org/t/p/original${el.backdrop_path}`,
     posterShape: "regular",
     imdbRating: el.vote_average ? el.vote_average.toFixed(1) : "N/A",
-    year:
-      type === "movie"
-        ? el.release_date
-          ? el.release_date.substr(0, 4)
-          : ""
-        : el.first_air_date
-          ? el.first_air_date.substr(0, 4)
-          : "",
+    year,
+    releaseInfo: year,
+    runtime: runtimeMinutes ? parseRunTime(runtimeMinutes) : undefined,
     type: type === "movie" ? type : "series",
     description: el.overview,
   };
