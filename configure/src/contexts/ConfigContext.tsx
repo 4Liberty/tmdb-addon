@@ -1,4 +1,4 @@
-import React, { useContext, useEffect, useState } from "react";
+import React, { useCallback, useContext, useEffect, useState } from "react";
 import { ConfigContext, type CatalogConfig, type ConfigContextType, type RPDBMediaTypes } from "./config";
 import {
   baseCatalogs,
@@ -106,22 +106,43 @@ export function ConfigProvider({ children }: { children: React.ReactNode }) {
     return undefined;
   };
 
-  const applyConfig = (config: any) => {
-    if (config.rpdbkey !== undefined) setRpdbkey(config.rpdbkey);
-    if (config.rpdbMediaTypes) {
+  const isRecord = (value: unknown): value is Record<string, unknown> =>
+    typeof value === "object" && value !== null;
+
+  const asString = (value: unknown): string | undefined =>
+    typeof value === "string" ? value : undefined;
+
+  const applyConfig = (config: unknown) => {
+    if (!isRecord(config)) {
+      loadDefaultCatalogs();
+      return;
+    }
+
+    const rpdbkeyValue = asString(config.rpdbkey);
+    if (rpdbkeyValue !== undefined) setRpdbkey(rpdbkeyValue);
+
+    if (isRecord(config.rpdbMediaTypes)) {
       setRpdbMediaTypes({
         poster: config.rpdbMediaTypes.poster !== false,
         logo: config.rpdbMediaTypes.logo === true,
         backdrop: config.rpdbMediaTypes.backdrop === true
       });
     }
-    if (config.fanartApiKey !== undefined) setFanartApiKey(config.fanartApiKey);
-    if (config.mdblistkey !== undefined) setMdblistkey(config.mdblistkey);
-    if (config.geminikey !== undefined) setGeminiKey(config.geminikey);
-    if (config.groqkey !== undefined) setGroqKey(config.groqkey);
-    if (config.traktAccessToken !== undefined) setTraktAccessToken(config.traktAccessToken);
-    if (config.traktRefreshToken !== undefined) setTraktRefreshToken(config.traktRefreshToken);
-    if (config.tmdbApiKey !== undefined) setTmdbApiKey(config.tmdbApiKey);
+
+    const fanartApiKeyValue = asString(config.fanartApiKey);
+    if (fanartApiKeyValue !== undefined) setFanartApiKey(fanartApiKeyValue);
+    const mdblistKeyValue = asString(config.mdblistkey);
+    if (mdblistKeyValue !== undefined) setMdblistkey(mdblistKeyValue);
+    const geminiKeyValue = asString(config.geminikey);
+    if (geminiKeyValue !== undefined) setGeminiKey(geminiKeyValue);
+    const groqKeyValue = asString(config.groqkey);
+    if (groqKeyValue !== undefined) setGroqKey(groqKeyValue);
+    const traktAccessTokenValue = asString(config.traktAccessToken);
+    if (traktAccessTokenValue !== undefined) setTraktAccessToken(traktAccessTokenValue);
+    const traktRefreshTokenValue = asString(config.traktRefreshToken);
+    if (traktRefreshTokenValue !== undefined) setTraktRefreshToken(traktRefreshTokenValue);
+    const tmdbApiKeyValue = asString(config.tmdbApiKey);
+    if (tmdbApiKeyValue !== undefined) setTmdbApiKey(tmdbApiKeyValue);
 
     const provide = asBool(config.provideImdbId);
     if (provide !== undefined) setProvideImdbId(provide);
@@ -131,14 +152,24 @@ export function ConfigProvider({ children }: { children: React.ReactNode }) {
     if (prefix !== undefined) setTmdbPrefix(prefix);
     const hideThumbs = asBool(config.hideEpisodeThumbnails);
     if (hideThumbs !== undefined) setHideEpisodeThumbnails(hideThumbs);
-    if (config.sessionId !== undefined) setSessionId(config.sessionId);
-    if (config.ageRating !== undefined) setAgeRating(config.ageRating);
+    const sessionIdValue = asString(config.sessionId);
+    if (sessionIdValue !== undefined) setSessionId(sessionIdValue);
+    const ageRatingValue = asString(config.ageRating);
+    if (ageRatingValue !== undefined) setAgeRating(ageRatingValue);
     const adult = asBool(config.includeAdult);
     if (adult !== undefined) setIncludeAdult(adult);
-    if (config.language !== undefined) setLanguage(config.language);
+    const languageValue = asString(config.language);
+    if (languageValue !== undefined) setLanguage(languageValue);
     const hideCinema = asBool(config.hideInCinemaTag);
     if (hideCinema !== undefined) setHideInCinemaTag(hideCinema);
-    if (config.castCount !== undefined) setCastCount(config.castCount === "Unlimited" ? undefined : Number(config.castCount));
+    if (config.castCount !== undefined) {
+      if (config.castCount === "Unlimited") {
+        setCastCount(undefined);
+      } else {
+        const nextCastCount = typeof config.castCount === "number" ? config.castCount : Number(config.castCount);
+        setCastCount(Number.isFinite(nextCastCount) ? nextCastCount : undefined);
+      }
+    }
 
     const enableAR = asBool(config.enableAgeRating);
     if (enableAR !== undefined) setEnableAgeRating(enableAR);
@@ -153,39 +184,51 @@ export function ConfigProvider({ children }: { children: React.ReactNode }) {
     const search = asBool(config.searchEnabled);
     if (search !== undefined) setSearchEnabled(search);
 
-    if (config.catalogs) {
-      const catalogsWithNames = config.catalogs.map((catalog: any) => {
-        const existingCatalog = allCatalogs.find(
-          c => c.id === catalog.id && c.type === catalog.type
-        );
-        return {
-          ...catalog,
-          name: existingCatalog?.name || catalog.id,
-          enabled: catalog.enabled !== undefined ? catalog.enabled : true
-        };
-      });
+    if (Array.isArray(config.catalogs)) {
+      const catalogsWithNames: CatalogConfig[] = config.catalogs
+        .map((catalog): CatalogConfig | null => {
+          if (!isRecord(catalog)) return null;
+          const id = asString(catalog.id);
+          const type = asString(catalog.type);
+          if (!id || !type) return null;
+
+          const existingCatalog = allCatalogs.find((c) => c.id === id && c.type === type);
+
+          const enabled = asBool(catalog.enabled);
+          const showInHome = asBool(catalog.showInHome);
+
+          return {
+            id,
+            type,
+            name: existingCatalog?.name || id,
+            enabled: enabled !== undefined ? enabled : true,
+            showInHome: showInHome !== undefined ? showInHome : true,
+          };
+        })
+        .filter((c): c is CatalogConfig => c !== null);
+
       setCatalogs(catalogsWithNames);
 
       const selectedStreamingServices = new Set(
         catalogsWithNames
-          .filter((catalog: any) => catalog.id.startsWith('streaming.'))
-          .map((catalog: any) => catalog.id.split('.')[1])
+          .filter((catalog) => catalog.id.startsWith('streaming.'))
+          .map((catalog) => catalog.id.split('.')[1])
       );
 
-      setStreaming(Array.from(selectedStreamingServices) as string[]);
+      setStreaming(Array.from(selectedStreamingServices));
     } else if (config.catalogs === undefined) {
       loadDefaultCatalogs();
     }
   };
 
-  const loadDefaultCatalogs = () => {
+  const loadDefaultCatalogs = useCallback(() => {
     const defaultCatalogs = baseCatalogs.map(catalog => ({
       ...catalog,
       enabled: true,
       showInHome: true
     }));
     setCatalogs(defaultCatalogs);
-  };
+  }, []);
 
   const loadConfigFromUrl = () => {
     try {
@@ -263,6 +306,8 @@ export function ConfigProvider({ children }: { children: React.ReactNode }) {
     } else {
       loadDefaultCatalogs();
     }
+    // Intentional one-time bootstrap.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const value: ConfigContextType = {

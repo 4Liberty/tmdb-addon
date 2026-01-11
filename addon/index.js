@@ -429,6 +429,16 @@ addon.get('/api/proxy/status', async function (_req, res) {
 });
 
 // User count endpoints
+addon.post('/api/stats/track-user', async function (req, res) {
+  try {
+    await Promise.resolve(trackUser(req));
+    respond(res, { ok: true });
+  } catch (error) {
+    // Best-effort: never break the UI if tracking fails
+    respond(res, { ok: false });
+  }
+});
+
 addon.get('/api/stats/users', async function (_req, res) {
   try {
     const userCount = await getUserCount();

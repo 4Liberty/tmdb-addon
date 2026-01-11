@@ -4,12 +4,12 @@
   "description": "Metadata provided by TMDB",
   "main": "server.js",
   "scripts": {
-    "dev": "vite",
+    "dev": "VITE_CJS_IGNORE_WARNING=1 vite",
     "dev:server": "nodemon addon/server.js",
-    "build": "vite build",
-    "build:dev": "vite build --mode development",
+    "build": "VITE_CJS_IGNORE_WARNING=1 vite build",
+    "build:dev": "VITE_CJS_IGNORE_WARNING=1 vite build --mode development",
     "lint": "eslint .",
-    "preview": "vite preview",
+    "preview": "VITE_CJS_IGNORE_WARNING=1 vite preview",
     "start": "node addon/server.js",
     "test:proxy": "node test-proxy.js"
   },

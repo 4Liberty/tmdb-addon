@@ -274,7 +274,13 @@ export default function Home() {
         const response = await fetch(`${baseUrl}/api/stats/users`);
         if (response.ok) {
           const data = await response.json();
-          setUserCount(data.count);
+          const nextCount =
+            typeof data?.aggregatedUserCount === "number"
+              ? data.aggregatedUserCount
+              : typeof data?.userCount === "number"
+                ? data.userCount
+                : null;
+          setUserCount(nextCount);
         }
       } catch (error) {
         console.error('Error fetching user count:', error);
@@ -360,7 +366,7 @@ export default function Home() {
             Version {packageJson.version}
           </p>
           
-          {userCount !== null && (
+          {typeof userCount === "number" && (
             <div className="mb-8 flex items-center justify-center gap-2 text-sm text-gray-400">
               <svg 
                 className="w-4 h-4" 
