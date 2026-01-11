@@ -10,6 +10,10 @@ function requireTmdbApiKey() {
 }
 
 function resolveTmdbApiKey(overrideKey) {
+    const envKey = process.env.TMDB_API;
+    if (envKey && typeof envKey === 'string' && envKey.trim()) {
+        return envKey.trim();
+    }
     if (overrideKey && typeof overrideKey === 'string' && overrideKey.trim()) {
         return overrideKey.trim();
     }
