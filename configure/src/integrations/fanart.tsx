@@ -23,7 +23,7 @@ export default function Fanart() {
   };
 
   return (
-    <div className="space-y-4">
+    <form className="space-y-4" onSubmit={(e) => e.preventDefault()}>
       <Alert>
         <AlertDescription>
           Optional: Add your Fanart.tv API key to improve logo fetching. If omitted, the addon will
@@ -55,6 +55,6 @@ export default function Fanart() {
           </Button>
         </DialogClose>
       </div>
-    </div>
+    </form>
   );
 }

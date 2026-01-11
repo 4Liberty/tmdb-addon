@@ -9,8 +9,15 @@ function requireTmdbApiKey() {
     return key;
 }
 
-async function getRequestToken() {
-    const apiKey = requireTmdbApiKey();
+function resolveTmdbApiKey(overrideKey) {
+    if (overrideKey && typeof overrideKey === 'string' && overrideKey.trim()) {
+        return overrideKey.trim();
+    }
+    return requireTmdbApiKey();
+}
+
+async function getRequestToken(overrideKey) {
+    const apiKey = resolveTmdbApiKey(overrideKey);
     const response = await get('https://api.themoviedb.org/3/authentication/token/new', {
         params: { api_key: apiKey }
     });
@@ -18,9 +25,9 @@ async function getRequestToken() {
     return response?.data?.request_token;
 }
 
-async function getSessionId(requestToken) {
+async function getSessionId(requestToken, overrideKey) {
     if (!requestToken) throw new Error('Missing request token');
-    const apiKey = requireTmdbApiKey();
+    const apiKey = resolveTmdbApiKey(overrideKey);
     const response = await get('https://api.themoviedb.org/3/authentication/session/new', {
         params: { api_key: apiKey, request_token: requestToken }
     });

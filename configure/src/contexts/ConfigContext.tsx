@@ -247,15 +247,45 @@ export function ConfigProvider({ children }: { children: React.ReactNode }) {
         }
       }
 
-      const path = window.location.pathname.split('/')[1];
-      const decompressedConfig = decompressFromEncodedURIComponent(path);
-      const config = JSON.parse(decompressedConfig);
+      const pathSegments = window.location.pathname.split('/').filter(Boolean);
+      const queryConfig = urlParams.get('config');
+
+      // Supported sources:
+      // - /:encoded/configure (server route: /:catalogChoices?/configure)
+      // - /configure?config=:encoded
+      let encoded: string | null = null;
+      if (queryConfig) {
+        encoded = queryConfig;
+      } else if (pathSegments.length >= 2 && pathSegments[1] === 'configure' && pathSegments[0] !== 'configure') {
+        encoded = pathSegments[0];
+      }
+
+      // No config present: just load defaults.
+      if (!encoded) {
+        loadDefaultCatalogs();
+        return;
+      }
+
+      const decompressedConfig = decompressFromEncodedURIComponent(encoded);
+      if (!decompressedConfig) {
+        throw new Error('Invalid encoded config');
+      }
+
+      let config: unknown;
+      try {
+        config = JSON.parse(decompressedConfig);
+      } catch {
+        throw new Error('Invalid config JSON');
+      }
 
       applyConfig(config);
-      
+
       window.history.replaceState({}, '', '/configure');
     } catch (error) {
-      console.error('Error loading config from URL:', error);
+      // Avoid noisy console errors in production (common when users open /configure with no encoded config).
+      if (import.meta.env.DEV) {
+        console.error('Error loading config from URL:', error);
+      }
       loadDefaultCatalogs();
     }
   };
