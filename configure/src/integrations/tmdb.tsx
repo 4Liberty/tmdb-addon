@@ -41,13 +41,10 @@ export default function TMDB() {
     setIsLoading(true);
     setError("");
     try {
-      if (!tmdbApiKey) {
-        throw new Error('TMDB API key is missing. Add your TMDB API key first.');
-      }
+      const base = `/session_id?request_token=${encodeURIComponent(requestToken)}`;
+      const url = tmdbApiKey ? `${base}&api_key=${encodeURIComponent(tmdbApiKey)}` : base;
 
-      const response = await fetch(
-        `/session_id?request_token=${encodeURIComponent(requestToken)}&api_key=${encodeURIComponent(tmdbApiKey)}`
-      );
+      const response = await fetch(url);
       if (!response.ok) {
         const message = await readErrorMessage(response);
         throw new Error(message || 'Failed to create session');
@@ -110,12 +107,6 @@ export default function TMDB() {
     setIsLoading(true);
     setError("");
 
-    if (!tmdbApiKey) {
-      setError('TMDB API key is missing. Add your TMDB API key first.');
-      setIsLoading(false);
-      return;
-    }
-
     try {
       // Persist config so oauth callback can restore it (including tmdbApiKey)
       saveConfigToStorage();
@@ -124,9 +115,10 @@ export default function TMDB() {
         ? globalThis.crypto.randomUUID()
         : `${Date.now()}-${Math.random().toString(16).slice(2)}`;
 
-      const response = await fetch(
-        `/request_token?api_key=${encodeURIComponent(tmdbApiKey)}&cache_buster=${encodeURIComponent(uuid)}`
-      );
+      const base = `/request_token?cache_buster=${encodeURIComponent(uuid)}`;
+      const url = tmdbApiKey ? `${base}&api_key=${encodeURIComponent(tmdbApiKey)}` : base;
+
+      const response = await fetch(url);
       if (!response.ok) {
         const message = await readErrorMessage(response);
         throw new Error(message || 'Failed to get request token');
@@ -134,7 +126,8 @@ export default function TMDB() {
       
       const requestToken = await response.text();
       if (!requestToken) throw new Error('Empty request token');
-      const tmdbAuthUrl = `https://www.themoviedb.org/authenticate/${requestToken}?redirect_to=${window.location.href}`;
+      const redirectTo = `${window.location.origin}/configure/oauth-callback`;
+      const tmdbAuthUrl = `https://www.themoviedb.org/authenticate/${requestToken}?redirect_to=${encodeURIComponent(redirectTo)}`;
       window.location.href = tmdbAuthUrl;
     } catch (e) {
       setError(e instanceof Error ? e.message : "Failed to start TMDB authentication");
