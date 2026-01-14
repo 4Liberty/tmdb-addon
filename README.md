@@ -194,7 +194,7 @@ For complete proxy setup with Cloudflare WARP, see [docker-compose.proxy.yml](do
 | `MDBLIST_API_KEY` | MDBList API key | - |
 | `RPDB_API_KEY` | RPDB API key | - |
 
-> **Note**: Starting from v3.1.6, MongoDB is no longer required. The addon uses in-memory caching by default, with optional Redis support for distributed caching. See [issue #1215](https://github.com/mrcanelas/tmdb-addon/issues/1215) for more details.
+> **Note**: Starting from v3.1.6, MongoDB is no longer required. The addon uses in-memory caching by default, with optional Redis (recommended) or PostgreSQL (useful on platforms like Coolify) for persistent/distributed caching. See [issue #1215](https://github.com/mrcanelas/tmdb-addon/issues/1215) for more details.
 
 ## 📚 Documentation
 

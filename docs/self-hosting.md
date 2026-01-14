@@ -25,8 +25,9 @@ This guide provides instructions for self-hosting the TMDB Addon for Stremio.
 
 - **Default**: In-memory caching (no external dependencies)
 - **Optional**: Redis for distributed caching (recommended for production)
+- **Optional**: PostgreSQL for persistent caching (useful on platforms like Coolify that already provide Postgres)
 
-If you're upgrading from v3.1.5 or earlier, you can safely remove the `MONGODB_URI` environment variable. The addon will work with in-memory caching by default. For production deployments, consider using Redis for better performance and scalability.
+If you're upgrading from v3.1.5 or earlier, you can safely remove the `MONGODB_URI` environment variable. The addon will work with in-memory caching by default. For production deployments, consider using Redis (best) or PostgreSQL (a good alternative if you already have Postgres available).
 
 For more details, see [issue #1215](https://github.com/mrcanelas/tmdb-addon/issues/1215).
 
@@ -273,11 +274,16 @@ node addon/server.js
 
 | Variable | Description | Required |
 |----------|-------------|----------|
-| `MONGODB_URI` | MongoDB connection URI | Yes |
-| `FANART_API` | Fanart.tv API key (optional; improves logos when set) | No |
 | `TMDB_API` | TMDB API key | Yes |
 | `HOST_NAME` | Public URL of your addon (e.g., http://your_domain:1337) | Yes |
+| `FANART_API` | Fanart.tv API key (optional; improves logos when set) | No |
 | `PORT` | Server port (default: 1337) | No |
+| `DATABASE_URL` | PostgreSQL connection string for caching (Coolify-friendly) | No |
+| `POSTGRES_URL` | Alias for `DATABASE_URL` | No |
+| `PG_SSL` | Set to `true` if your Postgres requires TLS | No |
+| `PG_CACHE_TABLE` | Override cache table name (default: `tmdb_addon_cache`) | No |
+| `REDIS_URL` | Redis connection URL (preferred cache backend in production) | No |
+| `MONGODB_URI` | (Legacy) MongoDB connection URI for caching | No |
 | `TRAKT_CLIENT_ID` | Trakt OAuth client id (required for Trakt integration) | No |
 | `TRAKT_CLIENT_SECRET` | Trakt OAuth client secret (required for Trakt integration) | No |
 

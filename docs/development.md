@@ -7,7 +7,8 @@ This guide will help you set up your development environment and understand the 
 - Node.js 20.x or higher
 - npm 9.x or higher
 - Git
-- MongoDB (local or Atlas)
+- (Optional) Redis (recommended for distributed caching)
+- (Optional) PostgreSQL (useful for persistent caching)
 - Basic knowledge of TypeScript and React
 
 ## Project Structure
@@ -41,13 +42,16 @@ cp .env.example .env
 
 Edit `.env` with your development credentials:
 ```env
-MONGODB_URI=your_mongodb_uri
 FANART_API=your_fanart_key
 TMDB_API=your_tmdb_key
 HOST_NAME=http://localhost:1337
 PORT=1337
 TRAKT_CLIENT_ID=your_trakt_client_id
 TRAKT_CLIENT_SECRET=your_trakt_client_secret
+
+# Optional cache backend (choose one)
+# REDIS_URL=redis://localhost:6379
+# DATABASE_URL=postgresql://postgres:postgres@localhost:5432/tmdb_addon
 ```
 
 4. Start development server:
