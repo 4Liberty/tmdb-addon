@@ -1,4 +1,22 @@
 services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: tmdb-addon-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-tmdb_addon}
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+    volumes:
+      - tmdb_addon_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    networks:
+      - tmdb-network
+
   # Cloudflare WARP como proxy
   cloudflare-warp:
     image: cloudflare/cloudflare-warp:latest
@@ -25,13 +43,19 @@ services:
       - TMDB_PROXY_PORT=40000
       - TMDB_PROXY_PROTOCOL=socks5
       - PORT=1337
+      - DATABASE_URL=${DATABASE_URL:-postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/${POSTGRES_DB:-tmdb_addon}}
     ports:
       - "1337:1337"
     depends_on:
       - cloudflare-warp
+      postgres:
+        condition: service_healthy
     networks:
       - tmdb-network
 
 networks:
   tmdb-network:
     driver: bridge 
+
+volumes:
+  tmdb_addon_postgres_data:

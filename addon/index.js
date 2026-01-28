@@ -40,7 +40,23 @@ const staticOptions = {
 };
 
 addon.use(express.static(path.join(__dirname, '../public'), staticOptions));
-addon.use(express.static(path.join(__dirname, '../dist'), staticOptions));
+
+const distDir = path.join(__dirname, '../dist');
+const distAssetsDir = path.join(distDir, 'assets');
+
+// Serve the built frontend assets. Important: assets should NOT fall through to
+// the SPA catch-all (which serves HTML), otherwise browsers will error with:
+// "Expected a JavaScript module script but got text/html".
+const assetStaticOptions = Object.assign({}, staticOptions, { fallthrough: false });
+
+// Some hosting/proxy setups (or URL resolution edge-cases) may request chunks as
+// `/configure/assets/assets/<file>.js` instead of `/configure/assets/<file>.js`.
+// Support both paths.
+addon.use('/configure/assets/assets', express.static(distAssetsDir, assetStaticOptions));
+addon.use('/configure/assets', express.static(distAssetsDir, assetStaticOptions));
+
+// Serve other built files (index.html, etc). These can fall through.
+addon.use(express.static(distDir, staticOptions));
 
 // Track unique users (best-effort; no-op if caching is disabled)
 addon.use((req, _res, next) => {

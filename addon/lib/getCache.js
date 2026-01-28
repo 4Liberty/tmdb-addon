@@ -1,7 +1,6 @@
 const cacheManager = require('cache-manager');
 const redisStore = require('cache-manager-ioredis');
 const Redis = require('ioredis');
-const { mongoDbStore } = require('@tirke/node-cache-manager-mongodb');
 const { createPostgresCache } = require('./postgresCache');
 
 const GLOBAL_KEY_PREFIX = 'tmdb-addon';
@@ -38,9 +37,19 @@ function initiateCache() {
       tableName: process.env.PG_CACHE_TABLE || 'tmdb_addon_cache',
     });
   } else if (MONGODB_URI) {
+    let mongoDbStore;
+    try {
+      ({ mongoDbStore } = require('@tirke/node-cache-manager-mongodb'));
+    } catch (e) {
+      throw new Error(
+        'MONGODB_URI is set but @tirke/node-cache-manager-mongodb is not installed. ' +
+          'Remove MONGODB_URI to use in-memory/Redis/Postgres caching, or reinstall the legacy MongoDB cache dependency.'
+      );
+    }
+
     return cacheManager.caching(mongoDbStore, {
       url: MONGODB_URI,
-      ttl: META_TTL
+      ttl: META_TTL,
     });
   } else {
     return cacheManager.caching({

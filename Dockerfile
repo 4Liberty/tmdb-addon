@@ -1,5 +1,5 @@
 # Etapa de construção do frontend
-FROM node:20-alpine AS builder
+FROM node:20.11-alpine AS builder
 
 WORKDIR /app
 
@@ -7,7 +7,7 @@ WORKDIR /app
 COPY package*.json ./
 
 # Instala as dependências
-RUN npm install
+RUN npm ci
 
 # Copia o restante do código fonte
 COPY . .
@@ -16,7 +16,7 @@ COPY . .
 RUN npm run build
 
 # Etapa de produção
-FROM node:20-alpine AS runner
+FROM node:20.11-alpine AS runner
 
 WORKDIR /app
 
@@ -24,7 +24,8 @@ WORKDIR /app
 COPY package*.json ./
 
 # Instala apenas dependências de produção
-RUN npm install --production
+ENV NODE_ENV=production
+RUN npm ci --omit=dev
 
 # Copia os arquivos do servidor
 COPY --from=builder /app/addon ./addon

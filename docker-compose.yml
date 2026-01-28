@@ -1,9 +1,33 @@
 services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: tmdb-addon-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-tmdb_addon}
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+    volumes:
+      - tmdb_addon_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
   tmdb-addon:
     build: .
     container_name: tmdb-addon
     ports:
-      - "3000:3000"
+      - "${PORT:-1337}:${PORT:-1337}"
     env_file:
       - .env
+    environment:
+      - DATABASE_URL=${DATABASE_URL:-postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/${POSTGRES_DB:-tmdb_addon}}
+    depends_on:
+      postgres:
+        condition: service_healthy
     restart: unless-stopped
+
+volumes:
+  tmdb_addon_postgres_data:
