@@ -1,0 +1,12 @@
+[phases.install]
+cmds = ["npm ci"]
+# Ensure devDependencies are available during build even if NODE_ENV=production is set in the platform.
+env = { NODE_ENV = "development", NPM_CONFIG_PRODUCTION = "false" }
+
+[phases.build]
+cmds = ["npm run build"]
+# Vite/TypeScript need devDependencies during build.
+env = { NODE_ENV = "development", NPM_CONFIG_PRODUCTION = "false" }
+
+[start]
+cmd = "npm run start"
