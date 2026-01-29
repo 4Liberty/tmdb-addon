@@ -1,4 +1,4 @@
-require("dotenv").config();
+require('../utils/loadEnv')();
 const { getTmdbClient } = require("../utils/getTmdbClient");
 const geminiService = require("../utils/gemini-service");
 const groqService = require("../utils/groq-service");

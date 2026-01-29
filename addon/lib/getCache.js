@@ -41,10 +41,20 @@ function initiateCache() {
     try {
       ({ mongoDbStore } = require('@tirke/node-cache-manager-mongodb'));
     } catch (e) {
-      throw new Error(
-        'MONGODB_URI is set but @tirke/node-cache-manager-mongodb is not installed. ' +
-          'Remove MONGODB_URI to use in-memory/Redis/Postgres caching, or reinstall the legacy MongoDB cache dependency.'
+      // MongoDB cache is legacy and the dependency is intentionally not installed by default.
+      // If a deployment still has MONGODB_URI set (common when migrating), don't hard-fail;
+      // fall back to in-memory caching and emit a warning.
+      //
+      // If users truly want MongoDB caching, they can install the dependency and keep MONGODB_URI.
+      // Otherwise, prefer REDIS_URL or DATABASE_URL.
+      console.warn(
+        '[tmdb-addon] MONGODB_URI is set but @tirke/node-cache-manager-mongodb is not installed. ' +
+          'Falling back to in-memory cache. Remove MONGODB_URI to silence this warning, or set DATABASE_URL/REDIS_URL for persistent caching.'
       );
+      return cacheManager.caching({
+        store: 'memory',
+        ttl: META_TTL,
+      });
     }
 
     return cacheManager.caching(mongoDbStore, {

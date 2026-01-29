@@ -14,9 +14,13 @@ services:
       interval: 5s
       timeout: 5s
       retries: 10
+    ports:
+      - "5432:5432"
 
   tmdb-addon:
-    build: .
+    build:
+      context: .
+      network: host
     container_name: tmdb-addon
     ports:
       - "${PORT:-1337}:${PORT:-1337}"

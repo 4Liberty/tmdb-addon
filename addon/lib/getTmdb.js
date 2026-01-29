@@ -1,6 +1,6 @@
 // addon/lib/getTmdb.js
 
-require('dotenv').config()
+require('../utils/loadEnv')();
 const { getTmdbClient } = require('../utils/getTmdbClient')
 
 async function getTmdb(type, imdbId) {

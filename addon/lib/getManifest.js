@@ -1,4 +1,4 @@
-require("dotenv").config();
+require('../utils/loadEnv')();
 const { getGenreList } = require("./getGenreList");
 const { getLanguages } = require("./getLanguages");
 const { getGenresFromMDBList } = require("../utils/mdbList");

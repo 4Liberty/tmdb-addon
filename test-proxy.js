@@ -5,7 +5,7 @@
  * Usage: node test-proxy.js
  */
 
-require('dotenv').config();
+require('./addon/utils/loadEnv')();
 const { testProxy, PROXY_CONFIG } = require('./addon/utils/httpClient');
 
 async function runTests() {

@@ -3,6 +3,14 @@ FROM node:20.11-alpine AS builder
 
 WORKDIR /app
 
+# Reduce registry chatter and be more tolerant of transient DNS/network issues
+ENV NPM_CONFIG_AUDIT=false \
+	NPM_CONFIG_FUND=false \
+	NPM_CONFIG_FETCH_RETRIES=5 \
+	NPM_CONFIG_FETCH_RETRY_MINTIMEOUT=20000 \
+	NPM_CONFIG_FETCH_RETRY_MAXTIMEOUT=120000 \
+	NODE_OPTIONS="--dns-result-order=ipv4first"
+
 # Copia os arquivos de configuração primeiro
 COPY package*.json ./
 
@@ -19,6 +27,14 @@ RUN npm run build
 FROM node:20.11-alpine AS runner
 
 WORKDIR /app
+
+# Reduce registry chatter and be more tolerant of transient DNS/network issues
+ENV NPM_CONFIG_AUDIT=false \
+	NPM_CONFIG_FUND=false \
+	NPM_CONFIG_FETCH_RETRIES=5 \
+	NPM_CONFIG_FETCH_RETRY_MINTIMEOUT=20000 \
+	NPM_CONFIG_FETCH_RETRY_MAXTIMEOUT=120000 \
+	NODE_OPTIONS="--dns-result-order=ipv4first"
 
 # Copia apenas os arquivos necessários
 COPY package*.json ./

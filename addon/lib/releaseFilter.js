@@ -1,4 +1,4 @@
-require('dotenv').config();
+require('../utils/loadEnv')();
 const { getTmdbClient } = require('../utils/getTmdbClient');
 const { cache } = require('./getCache');
 

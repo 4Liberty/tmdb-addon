@@ -1,4 +1,4 @@
-require('dotenv').config();
+require('./loadEnv')();
 const swaggerStats = require('swagger-stats');
 const express = require('express');
 const packageJson = require("../../package.json");

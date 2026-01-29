@@ -1,4 +1,4 @@
-require('dotenv').config();
+require('./loadEnv')();
 const { TMDBClient } = require('./tmdbClient');
 
 let defaultClient = null;

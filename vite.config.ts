@@ -5,7 +5,7 @@ import path from "path";
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }) => ({
   plugins: [react()],
-  base: '/configure/',
+  base: process.env.VITE_BASE || '/configure/',
   publicDir: 'configure/public',
   build: {
     outDir: 'dist',

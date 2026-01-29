@@ -1,4 +1,4 @@
-require('dotenv').config();
+require('./utils/loadEnv')();
 
 const addon = require('./index.js')
 const PORT = process.env.PORT || 1337;

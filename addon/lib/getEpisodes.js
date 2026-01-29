@@ -1,4 +1,4 @@
-require("dotenv").config();
+require('../utils/loadEnv')();
 const { getTmdbClient } = require("../utils/getTmdbClient");
 const diferentOrder = require("../static/diferentOrder.json");
 const diferentImdbId = require("../static/diferentImdbId.json");

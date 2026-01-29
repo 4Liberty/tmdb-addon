@@ -1,5 +1,6 @@
 const express = require("express");
 const favicon = require('serve-favicon');
+const fs = require('fs');
 const path = require("path")
 const addon = express();
 
@@ -44,6 +45,11 @@ addon.use(express.static(path.join(__dirname, '../public'), staticOptions));
 const distDir = path.join(__dirname, '../dist');
 const distAssetsDir = path.join(distDir, 'assets');
 
+if (!fs.existsSync(path.join(distDir, 'index.html'))) {
+  // eslint-disable-next-line no-console
+  console.warn('[configure] dist/index.html not found. If you are deploying on Coolify, ensure the build step runs (producing dist/) before starting the server.');
+}
+
 // Serve the built frontend assets. Important: assets should NOT fall through to
 // the SPA catch-all (which serves HTML), otherwise browsers will error with:
 // "Expected a JavaScript module script but got text/html".
@@ -54,6 +60,8 @@ const assetStaticOptions = Object.assign({}, staticOptions, { fallthrough: false
 // Support both paths.
 addon.use('/configure/assets/assets', express.static(distAssetsDir, assetStaticOptions));
 addon.use('/configure/assets', express.static(distAssetsDir, assetStaticOptions));
+addon.use('/assets/assets', express.static(distAssetsDir, assetStaticOptions));
+addon.use('/assets', express.static(distAssetsDir, assetStaticOptions));
 
 // Serve other built files (index.html, etc). These can fall through.
 addon.use(express.static(distDir, staticOptions));
@@ -237,24 +245,15 @@ addon.get("/trakt_access_token", async function (req, res) {
   }
 });
 
-// Serve arquivos estáticos do React app
-addon.use('/configure', express.static(path.join(__dirname, '../dist'), {
-  fallthrough: true // Continua para a próxima rota se não encontrar o arquivo
-}));
-
-addon.use('/configure', (req, res, next) => {
-  const config = parseConfig(req.params.catalogChoices) || {};
-  next();
-});
-
 // Rota para /configure (sem sub-rotas)
 addon.get('/configure', function (req, res) {
   res.sendFile(path.join(__dirname, '../dist/index.html'));
 });
 
-// Rota catch-all para servir o React app em todas as rotas /configure/*
-// Usa * para capturar qualquer coisa após /configure/
-addon.get(/^\/configure\/.+$/, function (req, res) {
+// Rota catch-all para servir o React app em todas as rotas /configure/*,
+// mas nunca para arquivos de assets (para não devolver HTML quando o browser
+// espera JavaScript).
+addon.get(/^\/configure\/(?!assets\/).+$/, function (req, res) {
   res.sendFile(path.join(__dirname, '../dist/index.html'));
 });
 

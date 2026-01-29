@@ -1,4 +1,4 @@
-require("dotenv").config();
+require('../utils/loadEnv')();
 const { get } = require("../utils/httpClient");
 
 function requireTmdbApiKey() {

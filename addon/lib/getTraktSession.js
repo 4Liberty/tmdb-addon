@@ -1,4 +1,4 @@
-require('dotenv').config();
+require('../utils/loadEnv')();
 const { post } = require('../utils/httpClient');
 
 const TRAKT_CLIENT_ID = process.env.TRAKT_CLIENT_ID;
